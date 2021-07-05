@@ -1,9 +1,11 @@
+//! NetEase Cloud Music API For Rust.
+
 mod api;
 mod api_types;
 mod client;
 mod crypto;
 
-pub use api::NcmApi;
+pub use api::{NcmApi, ResourceType};
 
 type TResult<T> = std::result::Result<T, TError>;
 type TError = Box<dyn std::error::Error>;

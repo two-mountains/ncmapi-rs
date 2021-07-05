@@ -9,6 +9,7 @@ use crate::{
     TResult,
 };
 
+/// API wrapper.
 pub struct NcmApi {
     client: ApiClient,
 }
@@ -22,6 +23,7 @@ impl Default for NcmApi {
 }
 
 impl NcmApi {
+    /// NecmApi constructor
     pub fn new(
         enable_cache: bool,
         cache_exp: Duration,
@@ -42,9 +44,8 @@ impl NcmApi {
     }
 }
 
-// apis
+/// apis
 impl NcmApi {
-    // 1: 单曲, 10: 专辑, 100: 歌手, 1000: 歌单, 1002: 用户, 1004: MV, 1006: 歌词, 1009: 电台, 1014: 视频
     async fn _search(&self, key: &str, route: &str, opt: Option<Value>) -> TResult<ApiResponse> {
         let r = ApiRequestBuilder::post(API_ROUTE[route])
             .set_data(limit_offset(30, 0))
@@ -58,14 +59,28 @@ impl NcmApi {
         self.client.request(r).await
     }
 
+    /// 说明 : 调用此接口 , 传入搜索关键词可以搜索该音乐 / 专辑 / 歌手 / 歌单 / 用户 , 关键词可以多个 , 以空格隔开 ,
+    /// 如 " 周杰伦 搁浅 "( 不需要登录 ), 搜索获取的 mp3url 不能直接用 , 可通过 /song/url 接口传入歌曲 id 获取具体的播放链接
+    ///
+    /// required
+    /// 必选参数 : key: 关键词
+    ///
+    /// optional
+    /// 可选参数 : limit : 返回数量 , 默认为 30 offset : 偏移数量，用于分页 , 如 : 如 :( 页数 -1)*30, 其中 30 为 limit 的值 , 默认为 0
+    /// type: 搜索类型；默认为 1 即单曲 , 取值意义 : 1: 单曲, 10: 专辑, 100: 歌手, 1000: 歌单, 1002: 用户, 1004: MV, 1006: 歌词, 1009: 电台, 1014: 视频, 1018:综合
     pub async fn search(&self, key: &str, opt: Option<Value>) -> TResult<ApiResponse> {
         self._search(key, "search", opt).await
     }
 
+    /// Identical to search
     pub async fn cloud_search(&self, key: &str, opt: Option<Value>) -> TResult<ApiResponse> {
         self._search(key, "cloudsearch", opt).await
     }
 
+    /// 说明 : 调用此接口,可收藏/取消收藏专辑
+    /// required
+    /// id : 专辑 id
+    /// t : 1 为收藏,其他为取消收藏
     pub async fn album_sub(&self, id: usize, op: u8) -> TResult<ApiResponse> {
         let op = if op == 1 { "sub" } else { "unsub" };
         let u = replace_all_route_params(API_ROUTE["album_sub"], op);
@@ -78,6 +93,10 @@ impl NcmApi {
         self.client.request(r).await
     }
 
+    /// 说明 : 调用此接口 , 可获得已收藏专辑列表
+    /// optional
+    /// limit: 取出数量 , 默认为 25
+    /// offset: 偏移数量 , 用于分页 , 如 :( 页数 -1)*25, 其中 25 为 limit 的值 , 默认 为 0
     pub async fn album_sublist(&self, opt: Option<Value>) -> TResult<ApiResponse> {
         let r = ApiRequestBuilder::post(API_ROUTE["album_sublist"])
             .set_data(limit_offset(25, 0))
@@ -88,6 +107,9 @@ impl NcmApi {
         self.client.request(r).await
     }
 
+    /// 说明 : 调用此接口 , 传入专辑 id, 可获得专辑内容
+    /// required
+    /// 必选参数 : id: 专辑 id
     pub async fn album(&self, id: usize) -> TResult<ApiResponse> {
         let u = replace_all_route_params(API_ROUTE["album"], &id.to_string());
         let r = ApiRequestBuilder::post(&u).build();
@@ -95,6 +117,13 @@ impl NcmApi {
         self.client.request(r).await
     }
 
+    /// 说明 : 调用此接口,可获取歌手全部歌曲 必选参数 :
+    /// required
+    /// id : 歌手 id
+    /// optional:
+    /// order : hot ,time 按照热门或者时间排序
+    /// limit: 取出歌单数量 , 默认为 50
+    /// offset: 偏移数量 , 用于分页 , 如 :( 评论页数 -1)*50, 其中 50 为 limit 的值
     pub async fn artist_songs(&self, id: usize, opt: Option<Value>) -> TResult<ApiResponse> {
         let r = ApiRequestBuilder::post(API_ROUTE["artist_songs"])
             .set_data(json!({
@@ -112,6 +141,10 @@ impl NcmApi {
         self.client.request(r).await
     }
 
+    /// 说明 : 调用此接口,可收藏歌手
+    /// required
+    /// id : 歌手 id
+    /// t:操作,1 为收藏,其他为取消收藏
     pub async fn artist_sub(&self, id: usize, sub: u8) -> TResult<ApiResponse> {
         let mut opt = "sub";
         if sub != 1 {
@@ -129,6 +162,7 @@ impl NcmApi {
         self.client.request(r).await
     }
 
+    /// 说明 : 调用此接口,可获取收藏的歌手列表
     pub async fn artist_sublist(&self, opt: Option<Value>) -> TResult<ApiResponse> {
         let r = ApiRequestBuilder::post(API_ROUTE["artist_sublist"])
             .set_data(limit_offset(25, 0))
@@ -139,6 +173,9 @@ impl NcmApi {
         self.client.request(r).await
     }
 
+    /// 说明 : 调用此接口,可获取歌手热门50首歌曲
+    /// required
+    /// id : 歌手 id
     pub async fn artist_top_song(&self, id: usize) -> TResult<ApiResponse> {
         let r = ApiRequestBuilder::post(API_ROUTE["artist_top_song"])
             .set_data(json!({ "id": id }))
@@ -147,6 +184,11 @@ impl NcmApi {
         self.client.request(r).await
     }
 
+    /// 说明: 调用此接口,传入歌曲 id, 可获取音乐是否可用,返回 { success: true, message: 'ok' } 或者 { success: false, message: '亲爱的,暂无版权' }
+    /// requried
+    /// 必选参数 : id : 歌曲 id
+    /// optional
+    /// 可选参数 : br: 码率,默认设置了 999000 即最大码率,如果要 320k 则可设置为 320000,其他类推
     pub async fn check_music(&self, id: usize, opt: Option<Value>) -> TResult<ApiResponse> {
         let r = ApiRequestBuilder::post(API_ROUTE["check_music"])
             .set_data(json!({"br": 999000}))
@@ -157,6 +199,15 @@ impl NcmApi {
         self.client.request(r).await
     }
 
+    /// 说明 : 调用此接口 , 传入 type, 资源 id 可获得对应资源热门评论 ( 不需要登录 )
+    /// required
+    /// id : 资源 id
+    /// type: 数字 , 资源类型
+    ///
+    /// optional
+    /// 可选参数 : limit: 取出评论数量 , 默认为 20
+    /// offset: 偏移数量 , 用于分页 , 如 :( 评论页数 -1)*20, 其中 20 为 limit 的值
+    /// before: 分页参数,取上一页最后一项的 time 获取下一页数据(获取超过5000条评论的时候需要用到)
     pub async fn comment_hot(
         &self,
         id: usize,
@@ -179,6 +230,18 @@ impl NcmApi {
         self.client.request(r).await
     }
 
+    /// 新版评论接口
+    /// 说明 : 调用此接口 , 传入资源类型和资源id,以及排序方式,可获取对应资源的评论
+    ///
+    /// required
+    /// id : 资源 id, 如歌曲 id,mv id
+    /// type: 数字 , 资源类型 , 对应歌曲 , mv, 专辑 , 歌单 , 电台, 视频对应以下类型
+    ///
+    /// optional
+    /// pageNo:分页参数,第N页,默认为1
+    /// pageSize:分页参数,每页多少条数据,默认20
+    /// sortType: 排序方式,1:按推荐排序,2:按热度排序,3:按时间排序
+    /// cursor: 当sortType为3时且页数不是第一页时需传入,值为上一条数据的time
     pub async fn comment_new(
         &self,
         id: usize,
@@ -214,6 +277,10 @@ impl NcmApi {
         self.client.request(r).await
     }
 
+    /// required
+    /// rid: resource id
+    /// rt:  resource type
+    /// cmt: comment body
     pub async fn comment_create(
         &self,
         rid: usize,
@@ -231,6 +298,11 @@ impl NcmApi {
         self.client.request(r).await
     }
 
+    /// required
+    /// rid: resource id
+    /// rt:  resource type
+    /// reid: the comment id of reply to
+    /// cmt: comment body
     pub async fn comment_re(
         &self,
         rid: usize,
@@ -249,6 +321,10 @@ impl NcmApi {
         self.client.request(r).await
     }
 
+    /// required
+    /// rid: resource id
+    /// rt:  resource type
+    /// cmtid: comment id
     pub async fn comment_del(
         &self,
         rid: usize,
@@ -266,6 +342,10 @@ impl NcmApi {
         self.client.request(r).await
     }
 
+    /// 说明 : 调用此接口 , 传入签到类型 ( 可不传 , 默认安卓端签到 ), 可签到 ( 需要登录 ), 其中安卓端签到可获得 3 点经验 , web/PC 端签到可获得 2 点经验
+    ///
+    /// optional
+    /// 可选参数 : type: 签到类型 , 默认 0, 其中 0 为安卓端签到 ,1 为 web/PC 签到
     pub async fn daily_signin(&self, opt: Option<Value>) -> TResult<ApiResponse> {
         let r = ApiRequestBuilder::post(API_ROUTE["daily_signin"])
             .set_data(json!({"type": 0}))
@@ -275,6 +355,10 @@ impl NcmApi {
         self.client.request(r).await
     }
 
+    /// 说明 : 调用此接口 , 传入音乐 id, 可把该音乐从私人 FM 中移除至垃圾桶
+    ///
+    /// required
+    /// id: 歌曲 id
     pub async fn fm_trash(&self, id: usize) -> TResult<ApiResponse> {
         let mut rng = rand::thread_rng();
         let u = format!(
@@ -289,6 +373,13 @@ impl NcmApi {
         self.client.request(r).await
     }
 
+    /// 说明 : 调用此接口 , 传入音乐 id, 可喜欢该音乐
+    ///
+    /// required
+    /// 必选参数 : id: 歌曲 id
+    ///
+    /// optional
+    /// 可选参数 : like: 布尔值 , 默认为 true 即喜欢 , 若传 false, 则取消喜欢
     pub async fn like(&self, id: usize, opt: Option<Value>) -> TResult<ApiResponse> {
         let r = ApiRequestBuilder::post(API_ROUTE["like"])
             .add_cookie("os", "pc")
@@ -301,7 +392,10 @@ impl NcmApi {
         self.client.request(r).await
     }
 
-    // fav_list
+    /// 说明 : 调用此接口 , 传入用户 id, 可获取已喜欢音乐id列表(id数组)
+    ///
+    /// required
+    /// 必选参数 : uid: 用户 id
     pub async fn likelist(&self, uid: usize) -> TResult<ApiResponse> {
         let r = ApiRequestBuilder::post(API_ROUTE["likelist"])
             .set_data(json!({ "uid": uid }))
@@ -310,6 +404,13 @@ impl NcmApi {
         self.client.request(r).await
     }
 
+    /// 必选参数 :
+    /// phone: 手机号码
+    /// password: 密码
+    ///
+    /// 可选参数 :
+    /// countrycode: 国家码，用于国外手机号登录，例如美国传入：1
+    /// md5_password: md5加密后的密码,传入后 password 将失效
     pub async fn login_phone(&self, phone: &str, password: &str) -> TResult<ApiResponse> {
         let password = md5_hex(password.as_bytes());
         let r = ApiRequestBuilder::post(API_ROUTE["login_cellphone"])
@@ -325,24 +426,31 @@ impl NcmApi {
         self.client.request(r).await
     }
 
+    /// 说明 : 调用此接口 , 可刷新登录状态
     pub async fn login_refresh(&self) -> TResult<ApiResponse> {
         let r = ApiRequestBuilder::post(API_ROUTE["login_refresh"]).build();
 
         self.client.request(r).await
     }
 
+    /// 说明 : 调用此接口,可获取登录状态
     pub async fn login_status(&self) -> TResult<ApiResponse> {
         let r = ApiRequestBuilder::post(API_ROUTE["login_status"]).build();
 
         self.client.request(r).await
     }
 
+    /// 说明 : 调用此接口 , 可退出登录
     pub async fn logout(&self) -> TResult<ApiResponse> {
         let r = ApiRequestBuilder::post(API_ROUTE["logout"]).build();
 
         self.client.request(r).await
     }
 
+    /// 说明 : 调用此接口 , 传入音乐 id 可获得对应音乐的歌词 ( 不需要登录 )
+    ///
+    /// required
+    /// 必选参数 : id: 音乐 id
     pub async fn lyric(&self, id: usize) -> TResult<ApiResponse> {
         let r = ApiRequestBuilder::post(API_ROUTE["lyric"])
             .add_cookie("os", "pc")
@@ -357,12 +465,23 @@ impl NcmApi {
         self.client.request(r).await
     }
 
+    /// 说明 : 私人 FM( 需要登录 )
     pub async fn personal_fm(&self) -> TResult<ApiResponse> {
         let r = ApiRequestBuilder::post(API_ROUTE["personal_fm"]).build();
 
         self.client.request(r).await
     }
 
+    /// 说明 : 歌单能看到歌单名字, 但看不到具体歌单内容 , 调用此接口 , 传入歌单 id,
+    /// 可以获取对应歌单内的所有的音乐(未登录状态只能获取不完整的歌单,登录后是完整的)，
+    /// 但是返回的trackIds是完整的，tracks 则是不完整的，
+    /// 可拿全部 trackIds 请求一次 song/detail 接口获取所有歌曲的详情
+    ///
+    /// required
+    /// 必选参数 : id : 歌单 id
+    ///
+    /// optional
+    /// 可选参数 : s : 歌单最近的 s 个收藏者,默认为8
     pub async fn playlist_detail(&self, id: usize, opt: Option<Value>) -> TResult<ApiResponse> {
         let r = ApiRequestBuilder::post(API_ROUTE["playlist_detail"])
             .set_data(json!({"n": 100000, "s": 8, "id": id}))
@@ -372,6 +491,12 @@ impl NcmApi {
         self.client.request(r).await
     }
 
+    /// 说明 : 调用此接口 , 可以添加歌曲到歌单或者从歌单删除某首歌曲 ( 需要登录 )
+    ///
+    /// required
+    /// op: 从歌单增加单曲为 add, 删除为 del
+    /// pid: 歌单 id
+    /// tracks: 歌曲 id,可多个,用逗号隔开
     pub async fn playlist_tracks(
         &self,
         pid: usize,
@@ -387,6 +512,13 @@ impl NcmApi {
         self.client.request(r).await
     }
 
+    /// 说明 : 登录后调用此接口,可以更新用户歌单
+    ///
+    /// required
+    /// id:歌单id
+    /// name:歌单名字
+    /// desc:歌单描述
+    /// tags:歌单tag ,多个用 `;` 隔开,只能用官方规定标签
     pub async fn playlist_update(
         &self,
         pid: usize,
@@ -406,12 +538,14 @@ impl NcmApi {
         self.client.request(r).await
     }
 
+    /// 说明 : 调用此接口 , 可获得每日推荐歌单 ( 需要登录 )
     pub async fn recommend_resource(&self) -> TResult<ApiResponse> {
         let r = ApiRequestBuilder::post(API_ROUTE["recommend_resource"]).build();
 
         self.client.request(r).await
     }
 
+    /// 说明 : 调用此接口 , 可获得每日推荐歌曲 ( 需要登录 )
     pub async fn recommend_songs(&self) -> TResult<ApiResponse> {
         let r = ApiRequestBuilder::post(API_ROUTE["recommend_songs"])
             .add_cookie("os", "ios")
@@ -420,6 +554,15 @@ impl NcmApi {
         self.client.request(r).await
     }
 
+    /// 说明 : 调用此接口 , 传入音乐 id, 来源 id，歌曲时间 time，更新听歌排行数据
+    ///
+    /// requried
+    /// 必选参数 :
+    /// id: 歌曲 id
+    /// sourceid: 歌单或专辑 id
+    ///
+    /// optional
+    /// 可选参数 : time: 歌曲播放时间,单位为秒
     pub async fn scrobble(&self, id: usize, source_id: usize) -> TResult<ApiResponse> {
         let mut rng = rand::thread_rng();
         let r = ApiRequestBuilder::post(API_ROUTE["scrobble"])
@@ -442,6 +585,7 @@ impl NcmApi {
         self.client.request(r).await
     }
 
+    /// 说明 : 调用此接口 , 可获取默认搜索关键词
     pub async fn search_default(&self) -> TResult<ApiResponse> {
         let r = ApiRequestBuilder::post(API_ROUTE["search_default"])
             .set_crypto(crate::crypto::Crypto::Eapi)
@@ -451,12 +595,14 @@ impl NcmApi {
         self.client.request(r).await
     }
 
+    /// 说明 : 调用此接口,可获取热门搜索列表
     pub async fn search_hot_detail(&self) -> TResult<ApiResponse> {
         let r = ApiRequestBuilder::post(API_ROUTE["search_hot_detail"]).build();
 
         self.client.request(r).await
     }
 
+    /// 说明 : 调用此接口,可获取热门搜索列表(简略)
     pub async fn search_hot(&self) -> TResult<ApiResponse> {
         let r = ApiRequestBuilder::post(API_ROUTE["search_hot"])
             .set_data(json!({"type": 1111}))
@@ -466,6 +612,13 @@ impl NcmApi {
         self.client.request(r).await
     }
 
+    /// 说明 : 调用此接口 , 传入搜索关键词可获得搜索建议 , 搜索结果同时包含单曲 , 歌手 , 歌单 ,mv 信息
+    ///
+    /// required
+    /// 必选参数 : keywords : 关键词
+    ///
+    /// optional
+    /// 可选参数 : type : 如果传 'mobile' 则返回移动端数据
     pub async fn search_suggest(&self, keyword: &str, opt: Option<Value>) -> TResult<ApiResponse> {
         let mut device = "web";
         if let Some(val) = opt {
@@ -482,6 +635,10 @@ impl NcmApi {
         self.client.request(r).await
     }
 
+    /// 说明 : 调用此接口 , 传入歌手 id, 可获得相似歌手
+    ///
+    /// requried
+    /// 必选参数 : id: 歌手 id
     pub async fn simi_artist(&self, artist_id: usize) -> TResult<ApiResponse> {
         let mut r = ApiRequestBuilder::post(API_ROUTE["simi_artist"])
             .set_data(json!({ "artistid": artist_id }));
@@ -496,6 +653,10 @@ impl NcmApi {
         self.client.request(r.build()).await
     }
 
+    /// 说明 : 调用此接口 , 传入歌曲 id, 可获得相似歌单
+    ///
+    /// required
+    /// 必选参数 : id: 歌曲 id
     pub async fn simi_playlist(&self, id: usize, opt: Option<Value>) -> TResult<ApiResponse> {
         let r = ApiRequestBuilder::post(API_ROUTE["simi_playlist"])
             .set_data(limit_offset(50, 0))
@@ -506,6 +667,10 @@ impl NcmApi {
         self.client.request(r).await
     }
 
+    /// 说明 : 调用此接口 , 传入歌曲 id, 可获得相似歌曲
+    ///
+    /// required
+    /// 必选参数 : id: 歌曲 id
     pub async fn simi_song(&self, id: usize, opt: Option<Value>) -> TResult<ApiResponse> {
         let r = ApiRequestBuilder::post(API_ROUTE["simi_song"])
             .set_data(limit_offset(50, 0))
@@ -516,6 +681,10 @@ impl NcmApi {
         self.client.request(r).await
     }
 
+    /// 说明 : 调用此接口 , 传入音乐 id(支持多个 id, 用 , 隔开), 可获得歌曲详情
+    ///
+    /// requried
+    /// 必选参数 : ids: 音乐 id, 如 ids=347230
     pub async fn song_detail(&self, ids: &Vec<usize>) -> TResult<ApiResponse> {
         let list = ids
             .iter()
@@ -528,6 +697,14 @@ impl NcmApi {
         self.client.request(r).await
     }
 
+    /// 说明 : 使用歌单详情接口后 , 能得到的音乐的 id, 但不能得到的音乐 url, 调用此接口, 传入的音乐 id( 可多个 , 用逗号隔开 ),
+    /// 可以获取对应的音乐的 url,未登录状态或者非会员返回试听片段(返回字段包含被截取的正常歌曲的开始时间和结束时间)
+    ///
+    /// required
+    /// 必选参数 : id : 音乐 id
+    ///
+    /// optional
+    /// 可选参数 : br: 码率,默认设置了 999000 即最大码率,如果要 320k 则可设置为 320000,其他类推
     pub async fn song_url(&self, ids: &Vec<usize>) -> TResult<ApiResponse> {
         let mut rb = ApiRequestBuilder::post(API_ROUTE["song_url"])
             .set_crypto(crate::crypto::Crypto::Eapi)
@@ -549,11 +726,16 @@ impl NcmApi {
         self.client.request(rb.build()).await
     }
 
+    /// 说明 : 登录后调用此接口 ,可获取用户账号信息
     pub async fn user_account(&self) -> TResult<ApiResponse> {
         let r = ApiRequestBuilder::post(API_ROUTE["user_account"]).build();
         self.client.request(r).await
     }
 
+    /// 说明 : 登录后调用此接口 , 传入云盘歌曲 id，可获取云盘数据详情
+    ///
+    /// requried
+    /// 必选参数 : id: 歌曲id,可多个,用逗号隔开
     pub async fn user_cloud_detail(&self, ids: &Vec<usize>) -> TResult<ApiResponse> {
         let r = ApiRequestBuilder::post(API_ROUTE["user_cloud_detail"])
             .set_data(json!({ "songIds": ids }))
@@ -561,6 +743,12 @@ impl NcmApi {
         self.client.request(r).await
     }
 
+    /// 说明 : 登录后调用此接口 , 可获取云盘数据 , 获取的数据没有对应 url, 需要再调用一 次 /song/url 获取 url
+    ///
+    /// optional
+    /// 可选参数 :
+    /// limit : 返回数量 , 默认为 200
+    /// offset : 偏移数量，用于分页 , 如 :( 页数 -1)*200, 其中 200 为 limit 的值 , 默认为 0
     pub async fn user_cloud(&self, opt: Option<Value>) -> TResult<ApiResponse> {
         let r = ApiRequestBuilder::post(API_ROUTE["user_cloud"])
             .set_data(limit_offset(30, 0))
@@ -569,6 +757,15 @@ impl NcmApi {
         self.client.request(r).await
     }
 
+    /// 说明 : 登录后调用此接口 , 传入用户 id, 可以获取用户历史评论
+    ///
+    /// requried
+    /// 必选参数 : uid : 用户 id
+    ///
+    /// optional
+    /// 可选参数 :
+    /// limit : 返回数量 , 默认为 10
+    /// time: 上一条数据的time,第一页不需要传,默认为0
     pub async fn user_comment_history(
         &self,
         uid: usize,
@@ -587,12 +784,20 @@ impl NcmApi {
         self.client.request(r).await
     }
 
+    /// 说明 : 登录后调用此接口 , 传入用户 id, 可以获取用户详情
+    ///
+    /// required
+    /// 必选参数 : uid : 用户 id
     pub async fn user_detail(&self, uid: usize) -> TResult<ApiResponse> {
         let u = replace_all_route_params(API_ROUTE["user_detail"], &uid.to_string());
         let r = ApiRequestBuilder::post(&u).build();
         self.client.request(r).await
     }
 
+    /// 说明 : 登录后调用此接口 , 传入用户 id, 可以获取用户电台
+    ///
+    /// required
+    /// 必选参数 : uid : 用户 id
     pub async fn user_dj(&self, uid: usize, opt: Option<Value>) -> TResult<ApiResponse> {
         let u = replace_all_route_params(API_ROUTE["user_dj"], &uid.to_string());
         let r = ApiRequestBuilder::post(&u)
@@ -602,11 +807,21 @@ impl NcmApi {
         self.client.request(r).await
     }
 
+    /// 说明 : 登录后调用此接口 , 可以获取用户等级信息,包含当前登录天数,听歌次数,下一等级需要的登录天数和听歌次数,当前等级进度
     pub async fn user_level(&self) -> TResult<ApiResponse> {
         let r = ApiRequestBuilder::post(API_ROUTE["user_level"]).build();
         self.client.request(r).await
     }
 
+    /// 说明 : 登录后调用此接口 , 传入用户 id, 可以获取用户歌单
+    ///
+    /// required
+    /// 必选参数 : uid : 用户 id
+    ///
+    /// optional
+    /// 可选参数 :
+    /// limit : 返回数量 , 默认为 30
+    /// offset : 偏移数量，用于分页 , 如 :( 页数 -1)*30, 其中 30 为 limit 的值 , 默认为 0
     pub async fn user_playlist(&self, uid: usize, opt: Option<Value>) -> TResult<ApiResponse> {
         let r = ApiRequestBuilder::post(API_ROUTE["user_playlist"])
             .set_data(limit_offset(30, 0))
@@ -616,6 +831,13 @@ impl NcmApi {
         self.client.request(r).await
     }
 
+    /// 说明 : 登录后调用此接口 , 传入用户 id, 可获取用户播放记录
+    ///
+    /// requred
+    /// 必选参数 : uid : 用户 id
+    ///
+    /// optional
+    /// 可选参数 : type : type=1 时只返回 weekData, type=0 时返回 allData
     pub async fn user_record(&self, uid: usize, opt: Option<Value>) -> TResult<ApiResponse> {
         let r = ApiRequestBuilder::post(API_ROUTE["user_record"])
             .set_data(json!({"type": 1, "uid": uid}))
@@ -624,6 +846,8 @@ impl NcmApi {
         self.client.request(r).await
     }
 
+    /// 说明 : 登录后调用此接口 , 可以获取用户信息
+    /// 获取用户信息 , 歌单，收藏，mv, dj 数量
     pub async fn user_subcount(&self) -> TResult<ApiResponse> {
         let r = ApiRequestBuilder::post(API_ROUTE["user_subcount"]).build();
         self.client.request(r).await
@@ -642,14 +866,7 @@ fn limit_offset(limit: usize, offset: usize) -> Value {
     })
 }
 
-// id : 资源 id
-// type: 数字 , 资源类型 , 对应歌曲 , mv, 专辑 , 歌单 , 电台, 视频对应以下类型
-// 0: 歌曲
-// 1: mv
-// 2: 歌单
-// 3: 专辑
-// 4: 电台
-// 5: 视频
+/// 0: 歌曲 1: mv 2: 歌单 3: 专辑 4: 电台 5: 视频 6: 动态
 #[derive(Copy, Clone)]
 pub enum ResourceType {
     Song = 0,
@@ -660,16 +877,6 @@ pub enum ResourceType {
     Video = 5,
     Moment = 6,
 }
-
-// pub enum ResourceTypeCode {
-//     R_SO_4_,
-//     R_MV_5_,
-//     A_PL_0_,
-//     R_AL_3_,
-//     A_DJ_1_,
-//     R_VI_62_,
-//     A_EV_2_,
-// }
 
 fn map_resource_code(t: ResourceType) -> String {
     match t {
