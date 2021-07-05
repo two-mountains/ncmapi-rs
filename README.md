@@ -3,7 +3,7 @@
 NetEase Cloud Music API for Rust.
 
 
-### Useage
+### Usage
 
 ```toml
 [dependencies]
