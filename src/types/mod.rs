@@ -54,7 +54,6 @@ pub struct UserProfile {
     pub nickname: String,
 }
 
-
 #[derive(Default, Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct UserAccountResp {
@@ -74,14 +73,12 @@ pub struct PlaylistDetailResp {
     pub playlist: Option<PlaylistDetail>,
 }
 
-
 #[derive(Default, Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Playlist {
     pub id: usize,
     pub name: String,
 }
-
 
 #[derive(Default, Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -113,21 +110,15 @@ pub struct SongUrl {
     pub br: usize,
 }
 
-
-
-
-
-
-
-
 #[cfg(test)]
 mod tests {
     use super::{CloudSearchSong, ResultResp};
-    use crate::{NcmApi, types::{PlaylistDetailResp, SongUrlResp, UserAccountResp, UserPlaylistResp}};
-
+    use crate::{
+        types::{PlaylistDetailResp, SongUrlResp, UserAccountResp, UserPlaylistResp},
+        NcmApi,
+    };
 
     type CloudSearchSongResp = ResultResp<CloudSearchSong>;
-
 
     #[tokio::test]
     async fn test_de_cloud_search_song() {
@@ -138,7 +129,6 @@ mod tests {
         let res = serde_json::from_slice::<CloudSearchSongResp>(resp.unwrap().data()).unwrap();
         assert_eq!(res.code, 200);
     }
-
 
     #[tokio::test]
     async fn test_de_user_account() {
@@ -180,6 +170,4 @@ mod tests {
         let res = serde_json::from_slice::<SongUrlResp>(resp.unwrap().data()).unwrap();
         assert_eq!(res.code, 200);
     }
-
-
 }
