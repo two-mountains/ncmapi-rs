@@ -1,9 +1,9 @@
 //! NetEase Cloud Music API For Rust.
 
 mod api;
-mod api_types;
 mod client;
 mod crypto;
+pub mod types;
 
 pub use api::{NcmApi, ResourceType};
 
@@ -13,7 +13,8 @@ type TError = Box<dyn std::error::Error>;
 #[cfg(test)]
 mod tests {
     use super::NcmApi;
-    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+
+    #[tokio::test(flavor = "multi_thread")]
     async fn test_search() {
         let api = NcmApi::default();
         let resp = api.search("mota", None).await;

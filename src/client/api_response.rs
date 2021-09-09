@@ -19,9 +19,14 @@ impl ApiResponse {
     }
 
     pub fn deserialize_to_implict(&self) -> ImplicitResult {
-        let r: ImplicitResult = serde_json::from_slice(self.data()).unwrap();
-        r
+        serde_json::from_slice::<ImplicitResult>(self.data()).unwrap()
     }
+
+    // pub fn deserialize<'a, T>(&self)-> Result<T, serde_json::Error>
+    // where T: Deserialize<'a>
+    // {
+    //     serde_json::from_slice::<T>(self.data())
+    // }
 }
 
 impl fmt::Debug for ApiResponse {
