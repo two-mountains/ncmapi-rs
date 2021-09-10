@@ -35,16 +35,19 @@ pub struct Song {
 #[serde(rename_all = "camelCase")]
 pub struct Artist {
     pub id: usize,
-    pub name: String,
+    #[serde(default)]
+    pub name: Option<String>,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Album {
     pub id: usize,
-    pub name: String,
+    #[serde(default)]
+    pub name: Option<String>,
+    #[serde(default)]
     pub pic_url: String,
-    pub pic: i64,
+    pub pic: usize,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -64,7 +67,8 @@ pub struct UserAccountResp {
 #[derive(Default, Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct UserPlaylistResp {
     pub code: usize,
-    pub playlist: Option<Vec<Playlist>>,
+    #[serde(default)]
+    pub playlist: Vec<Playlist>,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -100,7 +104,8 @@ pub struct Id {
 #[derive(Default, Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct SongUrlResp {
     pub code: usize,
-    pub data: Option<Vec<SongUrl>>,
+    #[serde(default)]
+    pub data: Vec<SongUrl>,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -110,13 +115,35 @@ pub struct SongUrl {
     pub br: usize,
 }
 
+#[derive(Default, Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UserCloudResp {
+    pub code: usize,
+    #[serde(default)]
+    pub has_more: bool,
+    #[serde(default)]
+    pub data: Vec<CloudSongMeta>,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CloudSongMeta {
+    pub simple_song: Song,
+    pub song_id: usize,
+    pub song_name: String,
+    pub add_time: i128,
+    pub file_size: usize,
+    pub bitrate: usize,
+    pub file_name: String,
+}
+
+
+
 #[cfg(test)]
 mod tests {
+
     use super::{CloudSearchSong, ResultResp};
-    use crate::{
-        types::{PlaylistDetailResp, SongUrlResp, UserAccountResp, UserPlaylistResp},
-        NcmApi,
-    };
+    use crate::{NcmApi, types::{PlaylistDetailResp, SongUrlResp, UserAccountResp, UserCloudResp, UserPlaylistResp}};
 
     type CloudSearchSongResp = ResultResp<CloudSearchSong>;
 
@@ -168,6 +195,16 @@ mod tests {
         assert!(resp.is_ok());
 
         let res = serde_json::from_slice::<SongUrlResp>(resp.unwrap().data()).unwrap();
+        assert_eq!(res.code, 200);
+    }
+
+    #[tokio::test]
+    async fn test_de_user_cloud() {
+        let api = NcmApi::default();
+        let resp = api.user_cloud(None).await;
+        assert!(resp.is_ok());
+
+        let res = serde_json::from_slice::<UserCloudResp>(resp.unwrap().data()).unwrap();
         assert_eq!(res.code, 200);
     }
 }
