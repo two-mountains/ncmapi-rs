@@ -45,7 +45,8 @@ pub struct ApiClient {
 
 impl Default for ApiClient {
     fn default() -> Self {
-        Self::new()
+        let cookie_path = "/var/tmp/ncmapi_client_cookies";
+        Self::new(cookie_path)
     }
 }
 
@@ -55,7 +56,7 @@ pub struct ApiClientBuilder {
 }
 
 impl ApiClientBuilder {
-    pub fn new() -> Self {
+    pub fn new(cookie_path: &str) -> Self {
         ApiClientBuilder {
             config: Config {
                 cache: true,
@@ -63,7 +64,7 @@ impl ApiClientBuilder {
                 cache_clean_interval: Duration::from_secs(6 * 60),
                 base_url: BASE_URL.parse::<Url>().unwrap(),
                 preserve_cookies: true,
-                cookie_path: String::from("/tmp/client_cookies"),
+                cookie_path: String::from(cookie_path),
                 log_request: false,
                 log_response: false,
             },
@@ -134,8 +135,9 @@ impl ApiClientBuilder {
 }
 
 impl ApiClient {
-    pub fn new() -> ApiClient {
-        ApiClientBuilder::new()
+    /// cookie_path: file path of cookie cache
+    pub fn new(cookie_path: &str) -> ApiClient {
+        ApiClientBuilder::new(cookie_path)
             .build()
             .expect("build apiclient fail")
     }
@@ -539,7 +541,7 @@ mod tests {
     use super::*;
     use serde_json::json;
 
-    const COOKIE_PATH: &str = "test_data/client_cookies";
+    const COOKIE_PATH: &str = "/var/tmp/ncmapi_client_cookies";
 
     type Rb = api_request::ApiRequestBuilder;
 
@@ -556,7 +558,7 @@ mod tests {
 
     #[test]
     fn test_client() {
-        let cb = ApiClientBuilder::new()
+        let cb = ApiClientBuilder::new(COOKIE_PATH)
             .cache(true)
             .preserve_cookies(true)
             .log_request(true);
@@ -582,7 +584,7 @@ mod tests {
             .add_cookie("sid", "f1h82fg191fh9")
             .build();
 
-        let c = ApiClientBuilder::new().build().unwrap();
+        let c = ApiClientBuilder::new(COOKIE_PATH).build().unwrap();
         let http_req = c.to_http_request(r);
 
         assert!(http_req.is_ok());
@@ -590,7 +592,10 @@ mod tests {
 
     #[tokio::test(flavor = "multi_thread")]
     async fn test_request() {
-        let c = ApiClientBuilder::new().log_request(true).build().unwrap();
+        let c = ApiClientBuilder::new(COOKIE_PATH)
+            .log_request(true)
+            .build()
+            .unwrap();
         let r = create_search_req();
 
         let resp = c.request(r).await;
@@ -601,7 +606,7 @@ mod tests {
 
     #[tokio::test(flavor = "multi_thread")]
     async fn test_cache() {
-        let c = ApiClientBuilder::new().build().unwrap();
+        let c = ApiClientBuilder::new(COOKIE_PATH).build().unwrap();
 
         let r = create_search_req();
         let resp = c.request(r).await;
@@ -639,7 +644,7 @@ mod tests {
 
     #[test]
     fn test_eapi_headers() {
-        let c = ApiClientBuilder::new().build().unwrap();
+        let c = ApiClientBuilder::new(COOKIE_PATH).build().unwrap();
 
         let c = c.eapi_header_cookies();
         println!("{}", c.get("requestId").unwrap());

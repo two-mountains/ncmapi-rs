@@ -137,13 +137,16 @@ pub struct CloudSongMeta {
     pub file_name: String,
 }
 
-
-
 #[cfg(test)]
 mod tests {
 
     use super::{CloudSearchSong, ResultResp};
-    use crate::{NcmApi, types::{PlaylistDetailResp, SongUrlResp, UserAccountResp, UserCloudResp, UserPlaylistResp}};
+    use crate::{
+        types::{
+            PlaylistDetailResp, SongUrlResp, UserAccountResp, UserCloudResp, UserPlaylistResp,
+        },
+        NcmApi,
+    };
 
     type CloudSearchSongResp = ResultResp<CloudSearchSong>;
 

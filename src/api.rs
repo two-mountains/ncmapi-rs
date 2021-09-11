@@ -32,12 +32,12 @@ impl NcmApi {
         cookie_path: &str,
     ) -> Self {
         Self {
-            client: ApiClientBuilder::new()
+            client: ApiClientBuilder::new(cookie_path)
+                // .cookie_path(cookie_path)
                 .cache(enable_cache)
                 .cache_exp(cache_exp)
                 .cache_clean_interval(cache_clean_interval)
                 .preserve_cookies(preserve_cookies)
-                .cookie_path(cookie_path)
                 .build()
                 .unwrap(),
         }
@@ -60,7 +60,10 @@ impl NcmApi {
     }
 
     /// Identical to search. Deprecated! Use "cloud_search" instead.
-    #[deprecated(since = "0.1.2", note = "search was rarely used. Users should instead use cloud_search")]
+    #[deprecated(
+        since = "0.1.2",
+        note = "search was rarely used. Users should instead use cloud_search"
+    )]
     pub async fn search(&self, key: &str, opt: Option<Value>) -> TResult<ApiResponse> {
         self._search(key, "search", opt).await
     }
