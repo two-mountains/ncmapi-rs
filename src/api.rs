@@ -33,7 +33,7 @@ impl NcmApi {
     ) -> Self {
         Self {
             client: ApiClientBuilder::new(cookie_path)
-                // .cookie_path(cookie_path)
+                .cookie_path(cookie_path)
                 .cache(enable_cache)
                 .cache_exp(cache_exp)
                 .cache_clean_interval(cache_clean_interval)
@@ -917,16 +917,6 @@ mod tests {
     struct Auth {
         phone: String,
         password: String,
-    }
-
-    #[tokio::test(flavor = "multi_thread")]
-    async fn test_search() {
-        let api = NcmApi::default();
-        let resp = api.search("mota", None).await;
-        assert!(resp.is_ok());
-
-        let res = resp.unwrap().deserialize_to_implict();
-        assert_eq!(res.code, 200);
     }
 
     #[tokio::test(flavor = "multi_thread")]
