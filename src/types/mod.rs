@@ -31,7 +31,6 @@ pub struct Song {
     // pub publish_time: i64,
 }
 
-
 #[derive(Default, Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SongVerbose {
@@ -149,7 +148,6 @@ pub struct CloudSongMeta {
     pub file_name: String,
 }
 
-
 #[derive(Default, Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RecommendedSongs {
@@ -184,7 +182,6 @@ pub struct ResourceComments {
     pub total_count: usize,
     pub has_more: bool,
 }
-
 
 #[derive(Default, Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -240,7 +237,6 @@ pub struct RecommendedPlaylistsResp {
     pub recommend: Vec<Playlist>,
 }
 
-
 #[derive(Default, Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SimiSongsResp {
@@ -249,17 +245,17 @@ pub struct SimiSongsResp {
     pub songs: Vec<SongVerbose>,
 }
 
-
-
-
-
-
 #[cfg(test)]
 mod tests {
-    use std::io::Write;
-
     use super::{CloudSearchSong, ResultResp};
-    use crate::{NcmApi, types::{HotCommentsResp, LyricResp, PersonalFmResp, PlaylistDetailResp, RecommendedPlaylistsResp, RecommendedSongsResp, ResourceCommentsResp, SimiSongsResp, SongUrlResp, UserAccountResp, UserCloudResp, UserPlaylistResp}};
+    use crate::{
+        types::{
+            HotCommentsResp, LyricResp, PersonalFmResp, PlaylistDetailResp,
+            RecommendedPlaylistsResp, RecommendedSongsResp, ResourceCommentsResp, SimiSongsResp,
+            SongUrlResp, UserAccountResp, UserCloudResp, UserPlaylistResp,
+        },
+        NcmApi,
+    };
 
     type CloudSearchSongResp = ResultResp<CloudSearchSong>;
 
@@ -350,11 +346,12 @@ mod tests {
         assert_eq!(res.code, 200);
     }
 
-
     #[tokio::test]
     async fn test_de_hot_comments() {
         let api = NcmApi::default();
-        let resp = api.comment_hot(32977061, crate::ResourceType::Song, None).await;
+        let resp = api
+            .comment_hot(32977061, crate::ResourceType::Song, None)
+            .await;
         assert!(resp.is_ok());
 
         let res = serde_json::from_slice::<HotCommentsResp>(resp.unwrap().data()).unwrap();
