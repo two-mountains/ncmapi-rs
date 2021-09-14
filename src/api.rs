@@ -246,7 +246,7 @@ impl NcmApi {
     /// pageSize:分页参数,每页多少条数据,默认20
     /// sortType: 排序方式,1:按推荐排序,2:按热度排序,3:按时间排序
     /// cursor: 当sortType为3时且页数不是第一页时需传入,值为上一条数据的time
-    pub async fn comment_new(
+    pub async fn comment(
         &self,
         id: usize,
         resource_type: ResourceType,
@@ -1021,10 +1021,10 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread")]
-    async fn test_comment_new() {
+    async fn test_comment() {
         let api = NcmApi::default();
         let resp = api
-            .comment_new(SONG_ID, crate::api::ResourceType::Song, 1, 1, 1, 0, true)
+            .comment(SONG_ID, crate::api::ResourceType::Song, 1, 1, 1, 0, true)
             .await;
         assert!(resp.is_ok());
 

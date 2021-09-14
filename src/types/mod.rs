@@ -137,16 +137,65 @@ pub struct CloudSongMeta {
     pub file_name: String,
 }
 
+
+#[derive(Default, Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RecommendedSongs {
+    #[serde(default)]
+    pub daily_songs: Vec<Song>,
+    #[serde(default)]
+    pub order_songs: Vec<Song>,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct RecommendedSongsResp {
+    pub code: usize,
+    pub data: RecommendedSongs,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Comment {
+    pub user: UserProfile,
+    #[serde(default)]
+    pub content: String,
+    pub time: u64,
+    pub liked_count: usize,
+    pub liked: bool,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ResourceComments {
+    #[serde(default)]
+    pub comments: Vec<Comment>,
+    pub total_count: usize,
+    pub has_more: bool,
+}
+
+
+#[derive(Default, Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ResourceCommentsResp {
+    pub code: usize,
+    pub data: ResourceComments,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct HotCommentsResp {
+    pub code: usize,
+    #[serde(default)]
+    pub hot_comments: Vec<Comment>,
+    pub has_more: bool,
+    pub total: usize,
+}
+
+
 #[cfg(test)]
 mod tests {
-
     use super::{CloudSearchSong, ResultResp};
-    use crate::{
-        types::{
-            PlaylistDetailResp, SongUrlResp, UserAccountResp, UserCloudResp, UserPlaylistResp,
-        },
-        NcmApi,
-    };
+    use crate::{NcmApi, types::{HotCommentsResp, PlaylistDetailResp, RecommendedSongsResp, ResourceCommentsResp, SongUrlResp, UserAccountResp, UserCloudResp, UserPlaylistResp}};
 
     type CloudSearchSongResp = ResultResp<CloudSearchSong>;
 
@@ -210,4 +259,44 @@ mod tests {
         let res = serde_json::from_slice::<UserCloudResp>(resp.unwrap().data()).unwrap();
         assert_eq!(res.code, 200);
     }
+
+    #[tokio::test]
+    async fn test_de_recommended_songs() {
+        let api = NcmApi::default();
+        let resp = api.recommend_songs().await;
+        assert!(resp.is_ok());
+
+        let res = serde_json::from_slice::<RecommendedSongsResp>(resp.unwrap().data()).unwrap();
+        assert_eq!(res.code, 200);
+    }
+
+    // let res = resp.unwrap();
+    // let mut f = std::fs::OpenOptions::new().create(true).write(true).open("test-data/comments.json").unwrap();
+    // f.write_all(res.data()).unwrap();
+
+    #[tokio::test]
+    async fn test_de_comments() {
+        let api = NcmApi::default();
+        let resp = api
+            .comment(32977061, crate::api::ResourceType::Song, 10, 1, 1, 0, false)
+            .await;
+        assert!(resp.is_ok());
+
+        let res = serde_json::from_slice::<ResourceCommentsResp>(resp.unwrap().data()).unwrap();
+        assert_eq!(res.code, 200);
+    }
+
+
+    #[tokio::test]
+    async fn test_de_hot_comments() {
+        let api = NcmApi::default();
+        let resp = api.comment_hot(32977061, crate::ResourceType::Song, None).await;
+        assert!(resp.is_ok());
+
+        let res = serde_json::from_slice::<HotCommentsResp>(resp.unwrap().data()).unwrap();
+        assert_eq!(res.code, 200);
+    }
+
+
+
 }
