@@ -3,6 +3,7 @@ use std::{time::Duration, usize};
 use openssl::hash::{hash, MessageDigest};
 use rand::{Rng, RngCore};
 use serde_json::{json, Value};
+use serde_repr::{Deserialize_repr, Serialize_repr};
 
 use crate::{
     client::{ApiClient, ApiClientBuilder, ApiRequestBuilder, ApiResponse, API_ROUTE},
@@ -811,6 +812,35 @@ impl NcmApi {
         self.client.request(r).await
     }
 
+    /// 说明 : 调用此接口, 传入用户id可获取用户创建的电台
+    ///
+    /// required
+    /// 必选参数 : uid : 用户 id
+    pub async fn user_podcast(&self, uid: usize) -> TResult<ApiResponse> {
+        let r = ApiRequestBuilder::post(API_ROUTE["user_audio"])
+            .set_data(json!({ "userId": uid }))
+            .build();
+        self.client.request(r).await
+    }
+
+    /// 说明 : 登录后调用此接口 , 传入rid, 可查看对应电台的电台节目以及对应的 id, 需要 注意的是这个接口返回的 mp3Url 已经无效 , 都为 null, 但是通过调用 /song/url 这 个接口 , 传入节目 id 仍然能获取到节目音频 , 如 /song/url?id=478446370 获取代 码时间的一个节目的音频
+    /// 必选参数 : rid: 电台 的 id
+    /// 可选参数 :
+    /// limit : 返回数量 , 默认为 30
+    /// offset : 偏移数量，用于分页 , 如 :( 页数 -1)*30, 其中 30 为 limit 的值 , 默认为 0
+    /// asc : 排序方式,默认为 false (新 => 老 ) 设置 true 可改为 老 => 新
+    pub async fn podcast_audio(&self, id: usize, opt: Option<Value>) -> TResult<ApiResponse> {
+        let r = ApiRequestBuilder::post(API_ROUTE["dj_program"])
+            .set_data(limit_offset(30, 0))
+            .merge(opt.unwrap_or_default())
+            .merge(json!({
+                "radioId": id,
+                "asc": false,
+            }))
+            .build();
+        self.client.request(r).await
+    }
+
     /// 说明 : 登录后调用此接口 , 可以获取用户等级信息,包含当前登录天数,听歌次数,下一等级需要的登录天数和听歌次数,当前等级进度
     pub async fn user_level(&self) -> TResult<ApiResponse> {
         let r = ApiRequestBuilder::post(API_ROUTE["user_level"]).build();
@@ -880,6 +910,22 @@ pub enum ResourceType {
     Podcast = 4,
     Video = 5,
     Moment = 6,
+}
+
+/// 搜索类型；1: 单曲, 10: 专辑, 100: 歌手, 1000: 歌单, 1002: 用户, 1004: MV, 1006: 歌词, 1009: 电台, 1014: 视频, 1018:综合
+#[derive(Serialize_repr, Deserialize_repr, PartialEq, Debug)]
+#[repr(usize)]
+pub enum SearchType {
+    Song = 1,
+    Album = 10,
+    Artist = 100,
+    Collection = 1000,
+    User = 1002,
+    MV = 1004,
+    Lyric = 1006,
+    Podcast = 1009,
+    Video = 1014,
+    All = 1018,
 }
 
 fn map_resource_code(t: ResourceType) -> String {
@@ -1364,9 +1410,31 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread")]
-    async fn test_dj() {
+    async fn test_user_dj() {
         let api = NcmApi::default();
         let resp = api.user_dj(USER_ID, None).await;
+        assert!(resp.is_ok());
+
+        let res = resp.unwrap();
+        let res = res.deserialize_to_implict();
+        assert_eq!(res.code, 200);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_user_podcast() {
+        let api = NcmApi::default();
+        let resp = api.user_podcast(USER_ID).await;
+        assert!(resp.is_ok());
+
+        let res = resp.unwrap();
+        let res = res.deserialize_to_implict();
+        assert_eq!(res.code, 200);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_podcast_audio() {
+        let api = NcmApi::default();
+        let resp = api.podcast_audio(965114264, None).await;
         assert!(resp.is_ok());
 
         let res = resp.unwrap();

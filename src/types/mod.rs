@@ -1,5 +1,11 @@
 // This module was generated at https://transform.tools/json-to-rust-serde
 // However, some fields of struct was stripped for concision.
+pub type SearchSongResp = ResultResp<SearchResultSong>;
+pub type SearchArtistResp = ResultResp<SearchResultArtist>;
+pub type SearchPodcastResp = ResultResp<SearchResultPodcast>;
+pub type SearchPlaylistResp = ResultResp<SearchResultPlaylist>;
+pub type SearchAlbumResp = ResultResp<SearchResultAlbum>;
+
 #[derive(Default, Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ResultResp<T> {
@@ -9,7 +15,7 @@ pub struct ResultResp<T> {
 
 #[derive(Default, Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase", default)]
-pub struct CloudSearchSong {
+pub struct SearchResultSong {
     pub songs: Vec<Song>,
     pub has_more: bool,
 }
@@ -17,30 +23,19 @@ pub struct CloudSearchSong {
 #[derive(Default, Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Song {
-    pub name: String,
     pub id: usize,
-    #[serde(rename = "ar")]
+    pub name: String,
+    #[serde(alias = "ar")]
     pub artists: Vec<Artist>,
-    #[serde(rename = "al")]
+    #[serde(alias = "al")]
     pub album: Album,
-    #[serde(rename = "dt")]
+    #[serde(alias = "dt")]
     pub duration: usize,
-    pub fee: i64,
+    pub fee: usize,
+    #[serde(alias = "popularity")]
     pub pop: f32,
     // pub resource_state: bool,
     // pub publish_time: i64,
-}
-
-#[derive(Default, Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct SongVerbose {
-    pub name: String,
-    pub id: usize,
-    pub artists: Vec<Artist>,
-    pub album: Album,
-    pub duration: usize,
-    pub fee: i64,
-    pub popularity: f32,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -58,6 +53,36 @@ pub struct Album {
     #[serde(default)]
     pub pic_url: String,
     pub pic: usize,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PodcastAudio {
+    pub main_song: Song,
+    pub dj: UserProfile,
+    pub liked_count: usize,
+    pub comment_count: usize,
+}
+
+/// User created podcasts
+#[derive(Default, Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UserPodcastsResp {
+    pub code: usize,
+    #[serde(default)]
+    pub dj_radios: Vec<Podcast>,
+    #[serde(default)]
+    pub has_more: bool,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PodcastAudiosResp {
+    pub code: usize,
+    #[serde(default)]
+    pub programs: Vec<PodcastAudio>,
+    #[serde(default)]
+    pub more: bool,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -92,6 +117,7 @@ pub struct PlaylistDetailResp {
 pub struct Playlist {
     pub id: usize,
     pub name: String,
+    pub description: Option<String>,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -226,7 +252,7 @@ pub struct Lyric {
 pub struct PersonalFmResp {
     pub code: usize,
     #[serde(default)]
-    pub data: Vec<SongVerbose>,
+    pub data: Vec<Song>,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -242,22 +268,93 @@ pub struct RecommendedPlaylistsResp {
 pub struct SimiSongsResp {
     pub code: usize,
     #[serde(default)]
-    pub songs: Vec<SongVerbose>,
+    pub songs: Vec<Song>,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ArtistSongsResp {
+    pub code: usize,
+    #[serde(default)]
+    pub songs: Vec<Song>,
+    #[serde(default)]
+    pub more: bool,
+    #[serde(default)]
+    pub total: usize,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ArtistSublistResp {
+    pub code: usize,
+    #[serde(default)]
+    pub data: Vec<Artist>,
+    #[serde(default)]
+    pub has_more: bool,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Podcast {
+    pub id: usize,
+    pub name: String,
+    pub desc: String,
+    pub sub_count: usize,
+    pub category: String,
+    pub dj: UserProfile,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SearchResultArtist {
+    #[serde(default)]
+    pub artists: Vec<Artist>,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SearchResultPodcast {
+    #[serde(default)]
+    pub dj_radios: Vec<Podcast>,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SearchResultPlaylist {
+    #[serde(default)]
+    pub playlists: Vec<Playlist>,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SearchResultAlbum {
+    #[serde(default)]
+    pub albums: Vec<Album>,
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{CloudSearchSong, ResultResp};
+
+    use serde_json::json;
+
     use crate::{
         types::{
-            HotCommentsResp, LyricResp, PersonalFmResp, PlaylistDetailResp,
-            RecommendedPlaylistsResp, RecommendedSongsResp, ResourceCommentsResp, SimiSongsResp,
-            SongUrlResp, UserAccountResp, UserCloudResp, UserPlaylistResp,
+            ArtistSongsResp, ArtistSublistResp, HotCommentsResp, LyricResp, PersonalFmResp,
+            PlaylistDetailResp, PodcastAudiosResp, RecommendedPlaylistsResp, RecommendedSongsResp,
+            ResourceCommentsResp, SearchAlbumResp, SearchArtistResp, SearchPlaylistResp,
+            SearchPodcastResp, SearchSongResp, SimiSongsResp, SongUrlResp, UserAccountResp,
+            UserCloudResp, UserPlaylistResp, UserPodcastsResp,
         },
-        NcmApi,
+        NcmApi, SearchType,
     };
 
-    type CloudSearchSongResp = ResultResp<CloudSearchSong>;
+    // let res = resp.unwrap();
+    // let mut f = std::fs::OpenOptions::new()
+    //     .create(true)
+    //     .write(true)
+    //     .open("test-data/search_podcast.json")
+    //     .unwrap();
+    // f.write_all(res.data()).unwrap();
 
     #[tokio::test]
     async fn test_de_cloud_search_song() {
@@ -265,7 +362,55 @@ mod tests {
         let resp = api.cloud_search("xusong", None).await;
         assert!(resp.is_ok());
 
-        let res = serde_json::from_slice::<CloudSearchSongResp>(resp.unwrap().data()).unwrap();
+        let res = serde_json::from_slice::<SearchSongResp>(resp.unwrap().data()).unwrap();
+        assert_eq!(res.code, 200);
+    }
+
+    #[tokio::test]
+    async fn test_de_cloud_search_artist() {
+        let api = NcmApi::default();
+        let resp = api
+            .cloud_search("xusong", Some(json!({ "type": SearchType::Artist })))
+            .await;
+        assert!(resp.is_ok());
+
+        let res = serde_json::from_slice::<SearchArtistResp>(resp.unwrap().data()).unwrap();
+        assert_eq!(res.code, 200);
+    }
+
+    #[tokio::test]
+    async fn test_de_cloud_search_playlist() {
+        let api = NcmApi::default();
+        let resp = api
+            .cloud_search("ost", Some(json!({ "type": SearchType::Collection })))
+            .await;
+        assert!(resp.is_ok());
+
+        let res = serde_json::from_slice::<SearchPlaylistResp>(resp.unwrap().data()).unwrap();
+        assert_eq!(res.code, 200);
+    }
+
+    #[tokio::test]
+    async fn test_de_cloud_search_podcast() {
+        let api = NcmApi::default();
+        let resp = api
+            .cloud_search("asmr", Some(json!({ "type": SearchType::Podcast })))
+            .await;
+        assert!(resp.is_ok());
+
+        let res = serde_json::from_slice::<SearchPodcastResp>(resp.unwrap().data()).unwrap();
+        assert_eq!(res.code, 200);
+    }
+
+    #[tokio::test]
+    async fn test_de_cloud_search_album() {
+        let api = NcmApi::default();
+        let resp = api
+            .cloud_search("Mota", Some(json!({ "type": SearchType::Album })))
+            .await;
+        assert!(resp.is_ok());
+
+        let res = serde_json::from_slice::<SearchAlbumResp>(resp.unwrap().data()).unwrap();
         assert_eq!(res.code, 200);
     }
 
@@ -330,10 +475,6 @@ mod tests {
         assert_eq!(res.code, 200);
     }
 
-    // let res = resp.unwrap();
-    // let mut f = std::fs::OpenOptions::new().create(true).write(true).open("test-data/comments.json").unwrap();
-    // f.write_all(res.data()).unwrap();
-
     #[tokio::test]
     async fn test_de_comments() {
         let api = NcmApi::default();
@@ -395,6 +536,46 @@ mod tests {
         assert!(resp.is_ok());
 
         let res = serde_json::from_slice::<SimiSongsResp>(resp.unwrap().data()).unwrap();
+        assert_eq!(res.code, 200);
+    }
+
+    #[tokio::test]
+    async fn test_de_artist_songs() {
+        let api = NcmApi::default();
+        let resp = api.artist_songs(6452, None).await;
+        assert!(resp.is_ok());
+
+        let res = serde_json::from_slice::<ArtistSongsResp>(resp.unwrap().data()).unwrap();
+        assert_eq!(res.code, 200);
+    }
+
+    #[tokio::test]
+    async fn test_de_artist_sublist() {
+        let api = NcmApi::default();
+        let resp = api.artist_sublist(None).await;
+        assert!(resp.is_ok());
+
+        let res = serde_json::from_slice::<ArtistSublistResp>(resp.unwrap().data()).unwrap();
+        assert_eq!(res.code, 200);
+    }
+
+    #[tokio::test]
+    async fn test_de_user_podcast() {
+        let api = NcmApi::default();
+        let resp = api.user_podcast(1398995370).await;
+        assert!(resp.is_ok());
+
+        let res = serde_json::from_slice::<UserPodcastsResp>(resp.unwrap().data()).unwrap();
+        assert_eq!(res.code, 200);
+    }
+
+    #[tokio::test]
+    async fn test_de_podcast_audio() {
+        let api = NcmApi::default();
+        let resp = api.podcast_audio(965114264, None).await;
+        assert!(resp.is_ok());
+
+        let res = serde_json::from_slice::<PodcastAudiosResp>(resp.unwrap().data()).unwrap();
         assert_eq!(res.code, 200);
     }
 }
