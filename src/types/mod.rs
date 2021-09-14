@@ -31,11 +31,23 @@ pub struct Song {
     // pub publish_time: i64,
 }
 
+
+#[derive(Default, Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SongVerbose {
+    pub name: String,
+    pub id: usize,
+    pub artists: Vec<Artist>,
+    pub album: Album,
+    pub duration: usize,
+    pub fee: i64,
+    pub popularity: f32,
+}
+
 #[derive(Default, Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Artist {
     pub id: usize,
-    #[serde(default)]
     pub name: Option<String>,
 }
 
@@ -43,7 +55,6 @@ pub struct Artist {
 #[serde(rename_all = "camelCase")]
 pub struct Album {
     pub id: usize,
-    #[serde(default)]
     pub name: Option<String>,
     #[serde(default)]
     pub pic_url: String,
@@ -94,6 +105,7 @@ pub struct PlaylistDetail {
     pub tracks: Vec<Song>,
     #[serde(default)]
     pub track_ids: Vec<Id>,
+    pub user_id: usize,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -191,11 +203,63 @@ pub struct HotCommentsResp {
     pub total: usize,
 }
 
+#[derive(Default, Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LyricResp {
+    pub code: usize,
+    pub sgc: bool,
+    pub sfy: bool,
+    pub qfy: bool,
+    pub lrc: Option<Lyric>,
+    pub klyric: Option<Lyric>,
+    pub tlyric: Option<Lyric>,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Lyric {
+    #[serde(default)]
+    pub version: usize,
+    #[serde(default)]
+    pub lyric: String,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PersonalFmResp {
+    pub code: usize,
+    #[serde(default)]
+    pub data: Vec<SongVerbose>,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RecommendedPlaylistsResp {
+    pub code: usize,
+    #[serde(default)]
+    pub recommend: Vec<Playlist>,
+}
+
+
+#[derive(Default, Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SimiSongsResp {
+    pub code: usize,
+    #[serde(default)]
+    pub songs: Vec<SongVerbose>,
+}
+
+
+
+
+
 
 #[cfg(test)]
 mod tests {
+    use std::io::Write;
+
     use super::{CloudSearchSong, ResultResp};
-    use crate::{NcmApi, types::{HotCommentsResp, PlaylistDetailResp, RecommendedSongsResp, ResourceCommentsResp, SongUrlResp, UserAccountResp, UserCloudResp, UserPlaylistResp}};
+    use crate::{NcmApi, types::{HotCommentsResp, LyricResp, PersonalFmResp, PlaylistDetailResp, RecommendedPlaylistsResp, RecommendedSongsResp, ResourceCommentsResp, SimiSongsResp, SongUrlResp, UserAccountResp, UserCloudResp, UserPlaylistResp}};
 
     type CloudSearchSongResp = ResultResp<CloudSearchSong>;
 
@@ -297,6 +361,43 @@ mod tests {
         assert_eq!(res.code, 200);
     }
 
+    #[tokio::test]
+    async fn test_de_lyric() {
+        let api = NcmApi::default();
+        let resp = api.lyric(17346999).await;
+        assert!(resp.is_ok());
 
+        let res = serde_json::from_slice::<LyricResp>(resp.unwrap().data()).unwrap();
+        assert_eq!(res.code, 200);
+    }
 
+    #[tokio::test]
+    async fn test_de_personal_fm() {
+        let api = NcmApi::default();
+        let resp = api.personal_fm().await;
+        assert!(resp.is_ok());
+
+        let res = serde_json::from_slice::<PersonalFmResp>(resp.unwrap().data()).unwrap();
+        assert_eq!(res.code, 200);
+    }
+
+    #[tokio::test]
+    async fn test_de_recommended_playlists() {
+        let api = NcmApi::default();
+        let resp = api.recommend_resource().await;
+        assert!(resp.is_ok());
+
+        let res = serde_json::from_slice::<RecommendedPlaylistsResp>(resp.unwrap().data()).unwrap();
+        assert_eq!(res.code, 200);
+    }
+
+    #[tokio::test]
+    async fn test_de_simi_songs() {
+        let api = NcmApi::default();
+        let resp = api.simi_song(347230, None).await;
+        assert!(resp.is_ok());
+
+        let res = serde_json::from_slice::<SimiSongsResp>(resp.unwrap().data()).unwrap();
+        assert_eq!(res.code, 200);
+    }
 }
