@@ -1138,7 +1138,7 @@ mod tests {
 
     #[tokio::test(flavor = "multi_thread")]
     async fn test_login_phone() {
-        let f = fs::read_to_string("test_data/auth.json")
+        let f = fs::read_to_string("test-data/auth.json")
             .await
             .expect("no auth file");
         let auth: Auth = serde_json::from_str(&f).unwrap();
