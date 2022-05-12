@@ -1,6 +1,6 @@
 [package]
 name = "ncmapi"
-version = "0.1.9"
+version = "0.1.10"
 authors = ["akatsuki <akatsuki@gmail.com>"]
 edition = "2018"
 description = "NetEase Cloud Music API for Rust."
@@ -28,3 +28,4 @@ memory-cache-rs = "0.2.0"
 cookie = "0.15"
 regex = "1.5"
 phf = { version = "0.9", features = ["macros"] }
+thiserror = "1"

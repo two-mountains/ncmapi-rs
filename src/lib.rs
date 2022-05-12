@@ -6,13 +6,23 @@ mod crypto;
 pub mod types;
 
 pub use api::{NcmApi, ResourceType, SearchType};
+use thiserror::Error;
 
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub enum ApiErr {
+    #[error("reqwest error")]
     ReqwestErr,
+
+    #[error("deserialize error")]
     DeserializeErr,
+
+    #[error("parse url error")]
     ParseUrlErr,
+
+    #[error("read cookie error")]
     ReadCookieErr,
+
+    #[error("write cookie error")]
     WriteCookieErr,
 }
 
