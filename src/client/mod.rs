@@ -29,8 +29,11 @@ pub(crate) use route::API_ROUTE;
 use serde_json::{json, Value};
 use store::{InMemStore, Store};
 
-use crate::crypto::{eapi, linuxapi, weapi, Crypto};
 use crate::TResult;
+use crate::{
+    crypto::{eapi, linuxapi, weapi, Crypto},
+    ApiErr,
+};
 
 use self::api_request::Hm;
 
@@ -154,7 +157,11 @@ impl ApiClient {
             println!("{:#?}", request);
         }
 
-        let resp = self.client.execute(request).await?;
+        let resp = self
+            .client
+            .execute(request)
+            .await
+            .map_err(|_| ApiErr::ReqwestErr)?;
         self.on_response(id, resp).await
     }
 
@@ -168,7 +175,7 @@ impl ApiClient {
             write_cookies(&self.config.cookie_path, hv.to_str().unwrap()).unwrap_or_default();
         }
 
-        let body = resp.bytes().await?;
+        let body = resp.bytes().await.map_err(|_| ApiErr::ReqwestErr)?;
         let res = ApiResponse::new(body.to_vec());
 
         // cache response
@@ -307,11 +314,16 @@ impl ApiClient {
         // request builder
         let rb = self
             .client
-            .request(map_method(method), adapt_url(&url, crypto).parse::<Url>()?)
+            .request(
+                map_method(method),
+                adapt_url(&url, crypto)
+                    .parse::<Url>()
+                    .map_err(|_| ApiErr::ParseUrlErr)?,
+            )
             .headers(headers)
             .form(&form_data);
 
-        rb.build().map_err(|e| e.into())
+        rb.build().map_err(|_| ApiErr::ReqwestErr)
     }
 
     fn cookies(&self, url: &Url) -> Vec<Cookie> {
@@ -458,18 +470,23 @@ pub enum UA {
 
 fn write_cookies(path: &str, cs: &str) -> TResult<()> {
     if !Path::new(path).exists() {
-        File::create(path)?;
+        File::create(path).map_err(|_| ApiErr::WriteCookieErr)?;
     }
-    let mut file = OpenOptions::new().write(true).open(path)?;
+    let mut file = OpenOptions::new()
+        .write(true)
+        .open(path)
+        .map_err(|_| ApiErr::WriteCookieErr)?;
 
-    file.write_all(cs.as_bytes())?;
+    file.write_all(cs.as_bytes())
+        .map_err(|_| ApiErr::WriteCookieErr)?;
     Ok(())
 }
 
 fn read_cookies(path: &str) -> TResult<String> {
-    let mut file = File::open(path)?;
+    let mut file = File::open(path).map_err(|_| ApiErr::WriteCookieErr)?;
     let mut cs = String::new();
-    file.read_to_string(&mut cs)?;
+    file.read_to_string(&mut cs)
+        .map_err(|_| ApiErr::WriteCookieErr)?;
 
     Ok(cs)
 }

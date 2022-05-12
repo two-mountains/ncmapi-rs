@@ -7,8 +7,17 @@ pub mod types;
 
 pub use api::{NcmApi, ResourceType, SearchType};
 
+#[derive(Debug)]
+pub enum ApiErr {
+    ReqwestErr,
+    DeserializeErr,
+    ParseUrlErr,
+    ReadCookieErr,
+    WriteCookieErr,
+}
+
 type TResult<T> = std::result::Result<T, TError>;
-type TError = Box<dyn std::error::Error>;
+type TError = ApiErr;
 
 #[cfg(test)]
 mod tests {
