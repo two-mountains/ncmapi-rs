@@ -22,11 +22,12 @@ impl ApiResponse {
         serde_json::from_slice::<ImplicitResult>(self.data()).unwrap()
     }
 
-    // pub fn deserialize<'a, T>(&self)-> Result<T, serde_json::Error>
-    // where T: Deserialize<'a>
-    // {
-    //     serde_json::from_slice::<T>(self.data())
-    // }
+    pub fn deserialize<'a, T>(&'a self) -> Result<T, serde_json::Error>
+    where
+        T: Serialize + Deserialize<'a>,
+    {
+        serde_json::from_slice::<T>(self.data())
+    }
 }
 
 impl fmt::Debug for ApiResponse {
