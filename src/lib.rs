@@ -36,7 +36,7 @@ mod tests {
     #[tokio::test(flavor = "multi_thread")]
     async fn test_search() {
         let api = NcmApi::default();
-        let resp = api.cloud_search("mota", None).await;
+        let resp = api.search("mota", None).await;
         assert!(resp.is_ok());
 
         let res = resp.unwrap();

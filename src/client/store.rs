@@ -4,8 +4,12 @@ use super::ApiResponse;
 use std::{sync::RwLock, time};
 
 pub(crate) trait InMemStore {
+    #[allow(clippy::ptr_arg)]
     fn get(&self, id: &String) -> Option<ApiResponse>;
+
+    #[allow(clippy::ptr_arg)]
     fn contains_key(&self, id: &String) -> bool;
+
     fn insert(
         &self,
         id: String,

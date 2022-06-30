@@ -43,7 +43,7 @@ type Pieces = (
 
 impl Default for ApiRequestBuilder {
     fn default() -> Self {
-        ApiRequestBuilder::new(Method::POST, "")
+        ApiRequestBuilder::new(Method::Post, "")
     }
 }
 
@@ -80,7 +80,7 @@ impl ApiRequestBuilder {
     }
 
     pub fn post(url: &str) -> Self {
-        Self::new(Method::POST, url)
+        Self::new(Method::Post, url)
     }
 
     pub fn pieces(self) -> Pieces {
@@ -114,7 +114,7 @@ impl ApiRequestBuilder {
 
     //  data mutaion
     pub fn insert(mut self, key: &str, val: Value) -> Self {
-        let mut data = self.config.data.unwrap_or(json!({}));
+        let mut data = self.config.data.unwrap_or_else(|| json!({}));
 
         data.as_object_mut().unwrap().insert(key.to_owned(), val);
         self.config.data = Some(data);
@@ -126,7 +126,7 @@ impl ApiRequestBuilder {
             return self;
         }
 
-        let mut data = self.config.data.unwrap_or(json!({}));
+        let mut data = self.config.data.unwrap_or_else(|| json!({}));
         for (k, v) in val.as_object().unwrap() {
             data.as_object_mut()
                 .unwrap()
@@ -173,7 +173,7 @@ impl ApiRequestBuilder {
 
 impl Default for ApiRequest {
     fn default() -> Self {
-        ApiRequest::new(Method::POST, "")
+        ApiRequest::new(Method::Post, "")
     }
 }
 
@@ -197,8 +197,7 @@ impl ApiRequest {
     }
 
     fn serialize(&self) -> String {
-        let a = serde_json::to_string(self).unwrap();
-        a
+        serde_json::to_string(self).unwrap()
     }
 
     pub fn id(&self) -> String {
@@ -251,15 +250,15 @@ pub struct RequestOption {
 #[derive(Serialize, Debug, PartialEq, Eq, Clone, Copy)]
 #[allow(unused)]
 pub enum Method {
-    GET,
-    HEAD,
-    POST,
-    PUT,
-    DELETE,
-    CONNECT,
-    OPTIONS,
-    TRACE,
-    PATCH,
+    Get,
+    Head,
+    Post,
+    Put,
+    Delete,
+    Connect,
+    Options,
+    Trace,
+    Patch,
 }
 
 pub(crate) type Hm = HashMap<String, String>;

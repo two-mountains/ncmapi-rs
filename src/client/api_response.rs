@@ -1,10 +1,18 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::fmt;
+use std::fmt::{self, Display};
 
 pub struct ApiResponse {
     data: Vec<u8>,
 }
+
+
+impl Display for ApiResponse {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", String::from_utf8_lossy(self.data()))
+    }
+}
+
 impl ApiResponse {
     pub fn new(data: Vec<u8>) -> Self {
         Self { data }
@@ -12,10 +20,6 @@ impl ApiResponse {
 
     pub fn data(&self) -> &Vec<u8> {
         &self.data
-    }
-
-    pub fn to_string(&self) -> String {
-        String::from_utf8_lossy(self.data()).to_string()
     }
 
     pub fn deserialize_to_implict(&self) -> ImplicitResult {

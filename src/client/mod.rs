@@ -81,13 +81,13 @@ impl ApiClientBuilder {
 
         // sync cookies
         if let Ok(cs) = read_cookies(&config.cookie_path) {
-            if cs.len() > 0 {
+            if !cs.is_empty() {
                 let ch = cs
                     .split("; ")
                     .map(|cookie| HeaderValue::from_str(cookie).unwrap())
                     .collect::<Vec<_>>();
-                let mut cs = ch.iter().map(|c| c);
-                jar.set_cookies(&mut cs, &config.base_url);
+                // let mut cs = ch.iter().map(|c| c);
+                jar.set_cookies(&mut ch.iter(), &config.base_url);
             }
         }
 
@@ -187,12 +187,13 @@ impl ApiClient {
 
     fn to_http_request(&self, req: ApiRequest) -> TResult<Request> {
         let (method, url, data, ua, cookies, crypto, api_url, real_ip) = req.pieces();
-        let mut data = data.unwrap_or(json!({}));
+        // unwrap or else is lazily evaluated.
+        let mut data = data.unwrap_or_else(|| json!({}));
 
         // basic header
         let mut headers = HeaderMap::new();
         headers.insert(USER_AGENT, HeaderValue::from_static(fake_ua(ua)));
-        if method == api_request::Method::POST {
+        if method == api_request::Method::Post {
             headers.insert(
                 CONTENT_TYPE,
                 HeaderValue::from_static("application/x-www-form-urlencoded"),
@@ -292,12 +293,12 @@ impl ApiClient {
             match crypto {
                 Crypto::Weapi => {
                     let data = data.to_string();
-                    weapi(data.as_bytes()).to_vec()
+                    weapi(data.as_bytes()).into_vec()
                 }
                 Crypto::Eapi => {
                     let data = data.to_string();
                     let api_url = api_url.unwrap();
-                    eapi(api_url.as_bytes(), data.as_bytes()).to_vec()
+                    eapi(api_url.as_bytes(), data.as_bytes()).into_vec()
                 }
                 Crypto::Linuxapi => {
                     let data = json!({
@@ -306,7 +307,7 @@ impl ApiClient {
                         "params": &data,
                     })
                     .to_string();
-                    linuxapi(data.as_bytes()).to_vec()
+                    linuxapi(data.as_bytes()).into_vec()
                 }
             }
         };
@@ -329,11 +330,11 @@ impl ApiClient {
     fn cookies(&self, url: &Url) -> Vec<Cookie> {
         let mut cs = Vec::new();
         if let Some(cookies) = self.jar.cookies(url) {
-            if cookies.len() > 0 {
+            if !cookies.is_empty() {
                 cookies
                     .to_str()
                     .unwrap()
-                    .split(";")
+                    .split(';')
                     .map(|s| Cookie::parse(s.to_owned()).unwrap())
                     .for_each(|c| cs.push(c));
             }
@@ -368,42 +369,42 @@ impl ApiClient {
         hm.insert(
             "osver".to_owned(),
             self.cookie_netease_eapi("osver")
-                .unwrap_or("undefined".to_owned()),
+                .unwrap_or_else(|| "undefined".to_owned()),
         );
         hm.insert(
             "deviceId".to_owned(),
             self.cookie_netease_eapi("deviceId")
-                .unwrap_or("undefined".to_owned()),
+                .unwrap_or_else(|| "undefined".to_owned()),
         );
         hm.insert(
             "appver".to_owned(),
             self.cookie_netease_eapi("appver")
-                .unwrap_or("8.0.0".to_owned()),
+                .unwrap_or_else(|| "8.0.0".to_owned()),
         );
         hm.insert(
             "versioncode".to_owned(),
             self.cookie_netease_eapi("versioncode")
-                .unwrap_or("140".to_owned()),
+                .unwrap_or_else(|| "140".to_owned()),
         );
         hm.insert(
             "mobilename".to_owned(),
             self.cookie_netease_eapi("mobilename")
-                .unwrap_or("undefined".to_owned()),
+                .unwrap_or_else(|| "undefined".to_owned()),
         );
         hm.insert(
             "buildver".to_owned(),
-            self.cookie_netease_eapi("buildver").unwrap_or(
+            self.cookie_netease_eapi("buildver").unwrap_or_else(|| {
                 SystemTime::now()
                     .duration_since(UNIX_EPOCH)
                     .unwrap()
                     .as_secs()
-                    .to_string(),
-            ),
+                    .to_string()
+            }),
         );
         hm.insert(
             "resolution".to_owned(),
             self.cookie_netease_eapi("resolution")
-                .unwrap_or("1920x1080".to_owned()),
+                .unwrap_or_else(|| "1920x1080".to_owned()),
         );
         hm.insert(
             "__csrf".to_owned(),
@@ -412,12 +413,12 @@ impl ApiClient {
         hm.insert(
             "os".to_owned(),
             self.cookie_netease_eapi("os")
-                .unwrap_or("android".to_owned()),
+                .unwrap_or_else(|| "android".to_owned()),
         );
         hm.insert(
             "channel".to_owned(),
             self.cookie_netease_eapi("channel")
-                .unwrap_or("undefined".to_owned()),
+                .unwrap_or_else(|| "undefined".to_owned()),
         );
         hm.insert(
             "requestId".to_owned(),
@@ -492,7 +493,7 @@ fn read_cookies(path: &str) -> TResult<String> {
 }
 
 #[allow(unused)]
-fn serialize_cookies(cookies: &Vec<Cookie>) -> String {
+fn serialize_cookies(cookies: &[Cookie]) -> String {
     let s = cookies
         .iter()
         .map(|c| c.to_string())
@@ -528,15 +529,15 @@ fn adapt_url(url: &str, crypto: Crypto) -> String {
 // is not serializable.
 fn map_method(method: api_request::Method) -> reqwest::Method {
     match method {
-        api_request::Method::GET => reqwest::Method::GET,
-        api_request::Method::HEAD => reqwest::Method::HEAD,
-        api_request::Method::POST => reqwest::Method::POST,
-        api_request::Method::OPTIONS => reqwest::Method::OPTIONS,
-        api_request::Method::CONNECT => reqwest::Method::CONNECT,
-        api_request::Method::TRACE => reqwest::Method::TRACE,
-        api_request::Method::DELETE => reqwest::Method::DELETE,
-        api_request::Method::PUT => reqwest::Method::PUT,
-        api_request::Method::PATCH => reqwest::Method::PATCH,
+        api_request::Method::Get => reqwest::Method::GET,
+        api_request::Method::Head => reqwest::Method::HEAD,
+        api_request::Method::Post => reqwest::Method::POST,
+        api_request::Method::Options => reqwest::Method::OPTIONS,
+        api_request::Method::Connect => reqwest::Method::CONNECT,
+        api_request::Method::Trace => reqwest::Method::TRACE,
+        api_request::Method::Delete => reqwest::Method::DELETE,
+        api_request::Method::Put => reqwest::Method::PUT,
+        api_request::Method::Patch => reqwest::Method::PATCH,
     }
 }
 

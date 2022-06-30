@@ -11,16 +11,9 @@ use crate::{
 };
 
 /// API wrapper.
+#[derive(Default)]
 pub struct NcmApi {
     client: ApiClient,
-}
-
-impl Default for NcmApi {
-    fn default() -> Self {
-        Self {
-            client: ApiClient::default(),
-        }
-    }
 }
 
 impl NcmApi {
@@ -238,6 +231,7 @@ impl NcmApi {
     /// pageSize:分页参数,每页多少条数据,默认20
     /// sortType: 排序方式,1:按推荐排序,2:按热度排序,3:按时间排序
     /// cursor: 当sortType为3时且页数不是第一页时需传入,值为上一条数据的time
+    #[allow(clippy::too_many_arguments)]
     pub async fn comment(
         &self,
         id: usize,
@@ -681,7 +675,7 @@ impl NcmApi {
     ///
     /// requried
     /// 必选参数 : ids: 音乐 id, 如 ids=347230
-    pub async fn song_detail(&self, ids: &Vec<usize>) -> TResult<ApiResponse> {
+    pub async fn song_detail(&self, ids: &[usize]) -> TResult<ApiResponse> {
         let list = ids
             .iter()
             .map(|id| json!({ "id": id }).to_string())
@@ -957,9 +951,9 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread")]
-    async fn test_cloud_search() {
+    async fn test_search() {
         let api = NcmApi::default();
-        let resp = api.cloud_search("mota", None).await;
+        let resp = api.search("mota", None).await;
         assert!(resp.is_ok());
         let res = resp.unwrap().deserialize_to_implict();
         assert_eq!(res.code, 200);
@@ -1326,7 +1320,7 @@ mod tests {
     #[tokio::test(flavor = "multi_thread")]
     async fn test_song_detail() {
         let api = NcmApi::default();
-        let resp = api.song_detail(&vec![SONG_ID]).await;
+        let resp = api.song_detail(&[SONG_ID]).await;
         assert!(resp.is_ok());
 
         let res = resp.unwrap();

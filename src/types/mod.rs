@@ -357,9 +357,9 @@ mod tests {
     // f.write_all(res.data()).unwrap();
 
     #[tokio::test]
-    async fn test_de_cloud_search_song() {
+    async fn test_de_search_song() {
         let api = NcmApi::default();
-        let resp = api.cloud_search("xusong", None).await;
+        let resp = api.search("xusong", None).await;
         assert!(resp.is_ok());
 
         let res = serde_json::from_slice::<SearchSongResp>(resp.unwrap().data()).unwrap();
@@ -367,10 +367,10 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_de_cloud_search_artist() {
+    async fn test_de_search_artist() {
         let api = NcmApi::default();
         let resp = api
-            .cloud_search("xusong", Some(json!({ "type": SearchType::Artist })))
+            .search("xusong", Some(json!({ "type": SearchType::Artist })))
             .await;
         assert!(resp.is_ok());
 
@@ -379,10 +379,10 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_de_cloud_search_playlist() {
+    async fn test_de_search_playlist() {
         let api = NcmApi::default();
         let resp = api
-            .cloud_search("ost", Some(json!({ "type": SearchType::Collection })))
+            .search("ost", Some(json!({ "type": SearchType::Collection })))
             .await;
         assert!(resp.is_ok());
 
@@ -391,10 +391,10 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_de_cloud_search_podcast() {
+    async fn test_de_search_podcast() {
         let api = NcmApi::default();
         let resp = api
-            .cloud_search("asmr", Some(json!({ "type": SearchType::Podcast })))
+            .search("asmr", Some(json!({ "type": SearchType::Podcast })))
             .await;
         assert!(resp.is_ok());
 
@@ -403,10 +403,10 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_de_cloud_search_album() {
+    async fn test_de_search_album() {
         let api = NcmApi::default();
         let resp = api
-            .cloud_search("Mota", Some(json!({ "type": SearchType::Album })))
+            .search("Mota", Some(json!({ "type": SearchType::Album })))
             .await;
         assert!(resp.is_ok());
 
