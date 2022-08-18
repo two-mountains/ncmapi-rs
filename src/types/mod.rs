@@ -6,21 +6,21 @@ pub type SearchPodcastResp = ResultResp<SearchResultPodcast>;
 pub type SearchPlaylistResp = ResultResp<SearchResultPlaylist>;
 pub type SearchAlbumResp = ResultResp<SearchResultAlbum>;
 
-#[derive(Default, Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Default, Debug, Clone,  serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ResultResp<T> {
     pub code: usize,
     pub result: Option<T>,
 }
 
-#[derive(Default, Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Default, Debug, Clone,  serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct SearchResultSong {
     pub songs: Vec<Song>,
     pub has_more: bool,
 }
 
-#[derive(Default, Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Default, Debug, Clone,  serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Song {
     pub id: usize,
@@ -38,14 +38,14 @@ pub struct Song {
     // pub publish_time: i64,
 }
 
-#[derive(Default, Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Default, Debug, Clone,  serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Artist {
     pub id: usize,
     pub name: Option<String>,
 }
 
-#[derive(Default, Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Default, Debug, Clone,  serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Album {
     pub id: usize,
@@ -55,7 +55,7 @@ pub struct Album {
     pub pic: usize,
 }
 
-#[derive(Default, Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Default, Debug, Clone,  serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PodcastAudio {
     pub main_song: Song,
@@ -65,7 +65,7 @@ pub struct PodcastAudio {
 }
 
 /// User created podcasts
-#[derive(Default, Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Default, Debug, Clone,  serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct UserPodcastsResp {
     pub code: usize,
@@ -75,7 +75,7 @@ pub struct UserPodcastsResp {
     pub has_more: bool,
 }
 
-#[derive(Default, Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Default, Debug, Clone,  serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PodcastAudiosResp {
     pub code: usize,
@@ -85,34 +85,34 @@ pub struct PodcastAudiosResp {
     pub more: bool,
 }
 
-#[derive(Default, Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Default, Debug, Clone,  serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct UserProfile {
     pub user_id: usize,
     pub nickname: String,
 }
 
-#[derive(Default, Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Default, Debug, Clone,  serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct UserAccountResp {
     pub code: usize,
     pub profile: Option<UserProfile>,
 }
 
-#[derive(Default, Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Default, Debug, Clone,  serde::Serialize, serde::Deserialize)]
 pub struct UserPlaylistResp {
     pub code: usize,
     #[serde(default)]
     pub playlist: Vec<Playlist>,
 }
 
-#[derive(Default, Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Default, Debug, Clone,  serde::Serialize, serde::Deserialize)]
 pub struct PlaylistDetailResp {
     pub code: usize,
     pub playlist: Option<PlaylistDetail>,
 }
 
-#[derive(Default, Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Default, Debug, Clone,  serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Playlist {
     pub id: usize,
@@ -120,7 +120,7 @@ pub struct Playlist {
     pub description: Option<String>,
 }
 
-#[derive(Default, Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Default, Debug, Clone,  serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PlaylistDetail {
     pub id: usize,
@@ -133,26 +133,26 @@ pub struct PlaylistDetail {
     pub user_id: usize,
 }
 
-#[derive(Default, Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Default, Debug, Clone,  serde::Serialize, serde::Deserialize)]
 pub struct Id {
     pub id: usize,
 }
 
-#[derive(Default, Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Default, Debug, Clone,  serde::Serialize, serde::Deserialize)]
 pub struct SongUrlResp {
     pub code: usize,
     #[serde(default)]
     pub data: Vec<SongUrl>,
 }
 
-#[derive(Default, Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Default, Debug, Clone,  serde::Serialize, serde::Deserialize)]
 pub struct SongUrl {
     pub id: usize,
     pub url: String,
     pub br: usize,
 }
 
-#[derive(Default, Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Default, Debug, Clone,  serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct UserCloudResp {
     pub code: usize,
@@ -162,7 +162,7 @@ pub struct UserCloudResp {
     pub data: Vec<CloudSongMeta>,
 }
 
-#[derive(Default, Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Default, Debug, Clone,  serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CloudSongMeta {
     pub simple_song: Song,
@@ -174,7 +174,7 @@ pub struct CloudSongMeta {
     pub file_name: String,
 }
 
-#[derive(Default, Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Default, Debug, Clone,  serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RecommendedSongs {
     #[serde(default)]
@@ -183,13 +183,13 @@ pub struct RecommendedSongs {
     pub order_songs: Vec<Song>,
 }
 
-#[derive(Default, Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Default, Debug, Clone,  serde::Serialize, serde::Deserialize)]
 pub struct RecommendedSongsResp {
     pub code: usize,
     pub data: RecommendedSongs,
 }
 
-#[derive(Default, Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Default, Debug, Clone,  serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Comment {
     pub user: UserProfile,
@@ -200,7 +200,7 @@ pub struct Comment {
     pub liked: bool,
 }
 
-#[derive(Default, Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Default, Debug, Clone,  serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ResourceComments {
     #[serde(default)]
@@ -209,14 +209,14 @@ pub struct ResourceComments {
     pub has_more: bool,
 }
 
-#[derive(Default, Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Default, Debug, Clone,  serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ResourceCommentsResp {
     pub code: usize,
     pub data: ResourceComments,
 }
 
-#[derive(Default, Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Default, Debug, Clone,  serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct HotCommentsResp {
     pub code: usize,
@@ -226,7 +226,7 @@ pub struct HotCommentsResp {
     pub total: usize,
 }
 
-#[derive(Default, Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Default, Debug, Clone,  serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct LyricResp {
     pub code: usize,
@@ -238,7 +238,7 @@ pub struct LyricResp {
     pub tlyric: Option<Lyric>,
 }
 
-#[derive(Default, Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Default, Debug, Clone,  serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Lyric {
     #[serde(default)]
@@ -247,7 +247,7 @@ pub struct Lyric {
     pub lyric: String,
 }
 
-#[derive(Default, Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Default, Debug, Clone,  serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PersonalFmResp {
     pub code: usize,
@@ -255,7 +255,7 @@ pub struct PersonalFmResp {
     pub data: Vec<Song>,
 }
 
-#[derive(Default, Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Default, Debug, Clone,  serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RecommendedPlaylistsResp {
     pub code: usize,
@@ -263,7 +263,7 @@ pub struct RecommendedPlaylistsResp {
     pub recommend: Vec<Playlist>,
 }
 
-#[derive(Default, Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Default, Debug, Clone,  serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SimiSongsResp {
     pub code: usize,
@@ -271,7 +271,7 @@ pub struct SimiSongsResp {
     pub songs: Vec<Song>,
 }
 
-#[derive(Default, Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Default, Debug, Clone,  serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ArtistSongsResp {
     pub code: usize,
@@ -283,7 +283,7 @@ pub struct ArtistSongsResp {
     pub total: usize,
 }
 
-#[derive(Default, Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Default, Debug, Clone,  serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ArtistSublistResp {
     pub code: usize,
@@ -293,7 +293,7 @@ pub struct ArtistSublistResp {
     pub has_more: bool,
 }
 
-#[derive(Default, Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Default, Debug, Clone,  serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Podcast {
     pub id: usize,
@@ -304,28 +304,28 @@ pub struct Podcast {
     pub dj: UserProfile,
 }
 
-#[derive(Default, Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Default, Debug, Clone,  serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SearchResultArtist {
     #[serde(default)]
     pub artists: Vec<Artist>,
 }
 
-#[derive(Default, Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Default, Debug, Clone,  serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SearchResultPodcast {
     #[serde(default)]
     pub dj_radios: Vec<Podcast>,
 }
 
-#[derive(Default, Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Default, Debug, Clone,  serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SearchResultPlaylist {
     #[serde(default)]
     pub playlists: Vec<Playlist>,
 }
 
-#[derive(Default, Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Default, Debug, Clone,  serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SearchResultAlbum {
     #[serde(default)]

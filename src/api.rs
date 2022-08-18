@@ -886,7 +886,7 @@ fn limit_offset(limit: usize, offset: usize) -> Value {
 }
 
 /// 0: 歌曲 1: mv 2: 歌单 3: 专辑 4: 电台 5: 视频 6: 动态
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum ResourceType {
     Song = 0,
     MV = 1,
@@ -898,7 +898,7 @@ pub enum ResourceType {
 }
 
 /// 搜索类型；1: 单曲, 10: 专辑, 100: 歌手, 1000: 歌单, 1002: 用户, 1004: MV, 1006: 歌词, 1009: 电台, 1014: 视频, 1018:综合
-#[derive(Serialize_repr, Deserialize_repr, PartialEq, Debug, Copy, Clone)]
+#[derive(Serialize_repr, Deserialize_repr, PartialEq, Eq, Debug, Copy, Clone)]
 #[repr(usize)]
 pub enum SearchType {
     Song = 1,
