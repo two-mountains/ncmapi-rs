@@ -405,9 +405,10 @@ impl NcmApi {
         let password = md5_hex(password.as_bytes());
         let r = ApiRequestBuilder::post(API_ROUTE["login_cellphone"])
             .add_cookie("os", "pc")
+            .add_cookie("appver", "2.9.7")
             .set_data(json!({
-                "countrycode":   "86",
-                "rememberLogin": true,
+                "countrycode": "86",
+                "rememberLogin": "true",
                 "phone": phone,
                 "password": password,
             }))
