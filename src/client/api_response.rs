@@ -6,6 +6,11 @@ pub struct ApiResponse {
     data: Vec<u8>,
 }
 
+impl From<ApiResponse> for Vec<u8> {
+    fn from(value: ApiResponse) -> Self {
+        value.data
+    }
+}
 
 impl Display for ApiResponse {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
