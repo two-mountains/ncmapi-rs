@@ -1,49 +1,21 @@
-use memory_cache::MemoryCache;
-
 use super::ApiResponse;
-use std::{sync::RwLock, time};
+use moka::sync::Cache;
+use std::time::Duration;
 
-pub(crate) trait InMemStore {
-    #[allow(clippy::ptr_arg)]
-    fn get(&self, id: &String) -> Option<ApiResponse>;
-
-    #[allow(clippy::ptr_arg)]
-    fn contains_key(&self, id: &String) -> bool;
-
-    fn insert(
-        &self,
-        id: String,
-        val: ApiResponse,
-        lifetime: Option<time::Duration>,
-    ) -> Option<ApiResponse>;
-}
-
-pub(crate) struct Store(RwLock<MemoryCache<String, ApiResponse>>);
+/// The cache is an infrastructure detail: request construction and response
+/// decoding remain pure, while expiration lives at this boundary.
+pub(crate) struct Store(Cache<String, ApiResponse>);
 
 impl Store {
-    pub fn new(scan_interval: time::Duration) -> Self {
-        Self(RwLock::new(MemoryCache::with_full_scan(scan_interval)))
-    }
-}
-
-impl InMemStore for Store {
-    fn get(&self, id: &String) -> Option<ApiResponse> {
-        if let Some(res) = self.0.read().unwrap().get(id) {
-            return Some(ApiResponse::new(res.data().to_owned()));
-        }
-        None
+    pub fn new(time_to_live: Duration) -> Self {
+        Self(Cache::builder().time_to_live(time_to_live).build())
     }
 
-    fn contains_key(&self, id: &String) -> bool {
-        self.0.read().unwrap().contains_key(id)
+    pub fn get(&self, id: &str) -> Option<ApiResponse> {
+        self.0.get(id)
     }
 
-    fn insert(
-        &self,
-        id: String,
-        val: ApiResponse,
-        lifetime: Option<time::Duration>,
-    ) -> Option<ApiResponse> {
-        self.0.write().unwrap().insert(id, val, lifetime)
+    pub fn insert(&self, id: String, response: ApiResponse) {
+        self.0.insert(id, response);
     }
 }

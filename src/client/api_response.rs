@@ -2,10 +2,10 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::fmt::{self, Display};
 
+#[derive(Clone)]
 pub struct ApiResponse {
     data: Vec<u8>,
 }
-
 
 impl Display for ApiResponse {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

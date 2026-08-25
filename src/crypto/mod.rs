@@ -1,12 +1,13 @@
 mod key;
 
+use base64::{Engine as _, engine::general_purpose::STANDARD};
 use openssl::{
     error::ErrorStack,
-    hash::{hash, MessageDigest},
+    hash::{MessageDigest, hash},
     rsa::{Padding, Rsa},
-    symm::{decrypt, encrypt, Cipher},
+    symm::{Cipher, decrypt, encrypt},
 };
-use rand::RngCore;
+use rand::RngExt;
 use serde::Serialize;
 
 use key::{BASE62, EAPI_KEY, IV, LINUX_API_KEY, PRESET_KEY, PUBLIC_KEY};
@@ -53,9 +54,9 @@ impl LinuxapiForm {
 }
 
 pub fn weapi(text: &[u8]) -> WeapiForm {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     let mut rand_buf = [0u8; 16];
-    rng.fill_bytes(&mut rand_buf);
+    rng.fill(&mut rand_buf);
 
     let sk = rand_buf
         .iter()
@@ -63,12 +64,12 @@ pub fn weapi(text: &[u8]) -> WeapiForm {
         .collect::<Vec<u8>>();
 
     let params = {
-        let p = base64::encode(aes_128_cbc(
+        let p = STANDARD.encode(aes_128_cbc(
             text,
             PRESET_KEY.as_bytes(),
             Some(IV.as_bytes()),
         ));
-        base64::encode(aes_128_cbc(p.as_bytes(), &sk, Some(IV.as_bytes())))
+        STANDARD.encode(aes_128_cbc(p.as_bytes(), &sk, Some(IV.as_bytes())))
     };
 
     let enc_sec_key = {

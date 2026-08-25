@@ -1,4 +1,4 @@
-use phf::{phf_map, Map};
+use phf::{Map, phf_map};
 
 pub(crate) static API_ROUTE: Map<&'static str, &'static str> = phf_map! {
     "activate_init_profile"=>     "https://music.163.com/eapi/activate/initProfile",

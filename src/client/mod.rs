@@ -14,33 +14,33 @@ use std::{
 };
 
 use cookie::Cookie;
-use rand::Rng;
+use rand::RngExt;
 use regex::Regex;
 use reqwest::{
-    cookie::{CookieStore, Jar},
-    header::{HeaderMap, HeaderValue, CONTENT_TYPE, COOKIE, REFERER, SET_COOKIE, USER_AGENT},
     Client, Request, Response, Url,
+    cookie::{CookieStore, Jar},
+    header::{CONTENT_TYPE, COOKIE, HeaderMap, HeaderValue, REFERER, SET_COOKIE, USER_AGENT},
 };
 use serde::Serialize;
 
 pub use api_request::{ApiRequest, ApiRequestBuilder};
 pub use api_response::ApiResponse;
 pub(crate) use route::API_ROUTE;
-use serde_json::{json, Value};
-use store::{InMemStore, Store};
+use serde_json::{Value, json};
+use store::Store;
 
-use crate::TResult;
 use crate::{
-    crypto::{eapi, linuxapi, weapi, Crypto},
     ApiErr,
+    crypto::{Crypto, eapi, linuxapi, weapi},
 };
+use crate::{TResult, domain::request_id};
 
 use self::api_request::Hm;
 
 pub struct ApiClient {
     config: Config,
     client: Client,
-    store: Box<dyn InMemStore>,
+    store: Store,
     // this is a compromise way to sync & retrive cookies, since access to cookie jar
     // is denied by self.client::Afc<ClientRef>.cookie_store;
     jar: Arc<dyn CookieStore>,
@@ -64,7 +64,6 @@ impl ApiClientBuilder {
             config: Config {
                 cache: true,
                 cache_exp: Duration::from_secs(3 * 60),
-                cache_clean_interval: Duration::from_secs(6 * 60),
                 base_url: BASE_URL.parse::<Url>().unwrap(),
                 preserve_cookies: true,
                 cookie_path: String::from(cookie_path),
@@ -76,25 +75,28 @@ impl ApiClientBuilder {
 
     pub fn build(self) -> TResult<ApiClient> {
         let config = self.config;
-        let ci = config.cache_clean_interval;
+        let cache_exp = config.cache_exp;
         let jar = Arc::new(Jar::default());
 
-        // sync cookies
-        if let Ok(cs) = read_cookies(&config.cookie_path) {
-            if !cs.is_empty() {
-                let ch = cs
-                    .split("; ")
-                    .map(|cookie| HeaderValue::from_str(cookie).unwrap())
-                    .collect::<Vec<_>>();
-                // let mut cs = ch.iter().map(|c| c);
-                jar.set_cookies(&mut ch.iter(), &config.base_url);
-            }
+        // Synchronize cookies only when the caller opted into persistence.
+        if config.preserve_cookies
+            && let Ok(cs) = read_cookies(&config.cookie_path)
+            && !cs.is_empty()
+        {
+            let ch = cs
+                .split("; ")
+                .map(|cookie| HeaderValue::from_str(cookie).unwrap())
+                .collect::<Vec<_>>();
+            jar.set_cookies(&mut ch.iter(), &config.base_url);
         }
 
         Ok(ApiClient {
             config,
-            client: Client::builder().cookie_store(false).build().unwrap(),
-            store: Box::new(Store::new(ci)),
+            client: Client::builder()
+                .cookie_store(false)
+                .build()
+                .map_err(|_| ApiErr::ReqwestErr)?,
+            store: Store::new(cache_exp),
             jar,
         })
     }
@@ -106,11 +108,6 @@ impl ApiClientBuilder {
 
     pub fn cache_exp(mut self, exp: Duration) -> Self {
         self.config.cache_exp = exp;
-        self
-    }
-
-    pub fn cache_clean_interval(mut self, exp: Duration) -> Self {
-        self.config.cache_clean_interval = exp;
         self
     }
 
@@ -130,11 +127,6 @@ impl ApiClientBuilder {
         self.config.log_response = enable;
         self
     }
-
-    pub fn cookie_path(mut self, path: &str) -> Self {
-        self.config.cookie_path = path.to_owned();
-        self
-    }
 }
 
 impl ApiClient {
@@ -148,8 +140,10 @@ impl ApiClient {
     pub async fn request(&self, req: ApiRequest) -> TResult<ApiResponse> {
         let id = req.id();
 
-        if self.store.contains_key(&id) {
-            return Ok(self.store.get(&id).unwrap());
+        if self.config.cache
+            && let Some(response) = self.store.get(&id)
+        {
+            return Ok(response);
         }
 
         let request = self.to_http_request(req)?;
@@ -172,17 +166,20 @@ impl ApiClient {
             self.jar.set_cookies(&mut cs, resp.url());
             // sync cookie to local
             let hv = self.jar.cookies(&self.config.base_url).unwrap();
-            write_cookies(&self.config.cookie_path, hv.to_str().unwrap()).unwrap_or_default();
+            if self.config.preserve_cookies {
+                write_cookies(&self.config.cookie_path, hv.to_str().unwrap()).unwrap_or_default();
+            }
         }
 
         let body = resp.bytes().await.map_err(|_| ApiErr::ReqwestErr)?;
         let res = ApiResponse::new(body.to_vec());
 
         // cache response
-        self.store
-            .insert(id.clone(), res, Some(self.config.cache_exp));
+        if self.config.cache {
+            self.store.insert(id, res.clone());
+        }
 
-        Ok(self.store.get(&id).unwrap())
+        Ok(res)
     }
 
     fn to_http_request(&self, req: ApiRequest) -> TResult<Request> {
@@ -327,17 +324,17 @@ impl ApiClient {
         rb.build().map_err(|_| ApiErr::ReqwestErr)
     }
 
-    fn cookies(&self, url: &Url) -> Vec<Cookie> {
+    fn cookies(&self, url: &Url) -> Vec<Cookie<'static>> {
         let mut cs = Vec::new();
-        if let Some(cookies) = self.jar.cookies(url) {
-            if !cookies.is_empty() {
-                cookies
-                    .to_str()
-                    .unwrap()
-                    .split(';')
-                    .map(|s| Cookie::parse(s.to_owned()).unwrap())
-                    .for_each(|c| cs.push(c));
-            }
+        if let Some(cookies) = self.jar.cookies(url)
+            && !cookies.is_empty()
+        {
+            cookies
+                .to_str()
+                .unwrap()
+                .split(';')
+                .map(|s| Cookie::parse(s.to_owned()).unwrap())
+                .for_each(|c| cs.push(c));
         }
         cs
     }
@@ -346,13 +343,10 @@ impl ApiClient {
         &self.config.base_url
     }
 
-    pub fn cookie(&self, name: &str, url: &Url) -> Option<Cookie> {
-        for c in self.cookies(url) {
-            if c.name() == name {
-                return Some(c);
-            }
-        }
-        None
+    pub fn cookie(&self, name: &str, url: &Url) -> Option<Cookie<'static>> {
+        self.cookies(url)
+            .into_iter()
+            .find(|cookie| cookie.name() == name)
     }
 
     fn cookie_netease_eapi(&self, name: &str) -> Option<String> {
@@ -364,7 +358,7 @@ impl ApiClient {
 
     fn eapi_header_cookies(&self) -> Hm {
         let mut hm = Hm::new();
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
 
         hm.insert(
             "osver".to_owned(),
@@ -422,13 +416,12 @@ impl ApiClient {
         );
         hm.insert(
             "requestId".to_owned(),
-            format!(
-                "{}_{:04}",
+            request_id(
                 SystemTime::now()
                     .duration_since(UNIX_EPOCH)
                     .unwrap()
                     .as_millis(),
-                rng.gen_range(0..1000)
+                rng.random_range(0..1000),
             ),
         );
 
@@ -447,8 +440,6 @@ impl ApiClient {
 pub(crate) struct Config {
     cache: bool,
     cache_exp: Duration,
-    cache_clean_interval: Duration,
-
     preserve_cookies: bool,
     cookie_path: String,
     base_url: Url,
@@ -494,12 +485,11 @@ fn read_cookies(path: &str) -> TResult<String> {
 
 #[allow(unused)]
 fn serialize_cookies(cookies: &[Cookie]) -> String {
-    let s = cookies
+    cookies
         .iter()
-        .map(|c| c.to_string())
+        .map(|cookie| cookie.to_string())
         .collect::<Vec<String>>()
-        .join("; ");
-    s
+        .join("; ")
 }
 
 fn fake_ua(ua: UA) -> &'static str {
@@ -552,9 +542,45 @@ const UA_IPHONE: &str = "Mozilla/5.0 (iPhone; CPU iPhone OS 13_5_1 like Mac OS X
 const UA_LINUX: &str = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/60.0.3112.90 Safari/537.36";
 
 #[cfg(test)]
+mod contract_tests {
+    use serde_json::json;
+    use wiremock::{
+        Mock, MockServer, ResponseTemplate,
+        matchers::{method, path},
+    };
+
+    use super::{ApiClientBuilder, ApiRequestBuilder};
+
+    #[tokio::test]
+    async fn encrypted_request_is_sent_to_a_local_http_contract() {
+        let server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .and(path("/weapi/contract"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(json!({"code": 200})))
+            .mount(&server)
+            .await;
+
+        let client = ApiClientBuilder::new("/unused/ncmapi-cookie")
+            .cache(false)
+            .preserve_cookies(false)
+            .build()
+            .expect("a local HTTP client can be built");
+        let request = ApiRequestBuilder::post(&format!("{}/api/contract", server.uri()))
+            .set_data(json!({"ping": "pong"}))
+            .build();
+
+        let response = client
+            .request(request)
+            .await
+            .expect("local contract response");
+        assert_eq!(response.deserialize_to_implict().code, 200);
+    }
+}
+
+#[cfg(all(test, feature = "live-tests"))]
 mod tests {
-    use crate::client::route::API_ROUTE;
     use crate::client::ApiClientBuilder;
+    use crate::client::route::API_ROUTE;
 
     use super::*;
     use serde_json::json;

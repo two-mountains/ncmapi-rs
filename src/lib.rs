@@ -3,9 +3,12 @@
 mod api;
 mod client;
 mod crypto;
+mod domain;
 pub mod types;
 
-pub use api::{NcmApi, ResourceType, SearchType};
+pub use api::{NcmClient, NcmClientBuilder, NcmClientConfig, ResourceType, SearchType};
+#[deprecated(note = "use NcmClient instead")]
+pub type NcmApi = NcmClient;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -30,12 +33,26 @@ type TResult<T> = std::result::Result<T, TError>;
 type TError = ApiErr;
 
 #[cfg(test)]
+mod public_api_tests {
+    use super::NcmClient;
+
+    #[test]
+    fn ncm_client_is_the_primary_constructible_api() {
+        NcmClient::builder()
+            .cache(false)
+            .preserve_cookies(false)
+            .build()
+            .expect("default client configuration is valid");
+    }
+}
+
+#[cfg(all(test, feature = "live-tests"))]
 mod tests {
-    use super::NcmApi;
+    use super::NcmClient;
 
     #[tokio::test(flavor = "multi_thread")]
     async fn test_search() {
-        let api = NcmApi::default();
+        let api = NcmClient::default();
         let resp = api.search("mota", None).await;
         assert!(resp.is_ok());
 

@@ -1,8 +1,9 @@
 [package]
 name = "ncmapi"
-version = "0.1.13"
+version = "0.2.0"
 authors = ["akatsuki <akatsuki@gmail.com>"]
-edition = "2018"
+edition = "2024"
+rust-version = "1.98"
 description = "NetEase Cloud Music API for Rust."
 license = "MIT"
 homepage = "https://github.com/two-mountains/ncmapi-rs"
@@ -15,17 +16,24 @@ categories = ["api-bindings"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-reqwest = { version = "0.11", features = ["json", "cookies"] }
-tokio = { version = "1", features = ["full"] }
-serde = { version = "1.0", features = ["derive"] }
-serde_repr = "0.1"
-serde_json = "1.0"
-openssl = "0.10"
-hex = "0.4"
-rand = "0.8"
-base64 = "0.13"
-memory-cache-rs = "0.2.0"
-cookie = "0.15"
-regex = "1.5"
-phf = { version = "0.9", features = ["macros"] }
-thiserror = "1"
+base64 = "0.23.1"
+cookie = "0.18.2"
+hex = "0.4.3"
+moka = { version = "0.12.16", features = ["sync"] }
+openssl = "0.10.81"
+phf = { version = "0.14.0", features = ["macros"] }
+rand = "0.10.2"
+regex = "1.13.1"
+reqwest = { version = "0.13.4", default-features = false, features = ["cookies", "form", "json", "rustls"] }
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.151"
+serde_repr = "0.1.21"
+thiserror = "2.0.20"
+
+[dev-dependencies]
+proptest = "1"
+tokio = { version = "1.53.1", features = ["fs", "macros", "rt-multi-thread"] }
+wiremock = "0.6"
+
+[features]
+live-tests = []

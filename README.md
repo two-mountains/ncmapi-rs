@@ -2,6 +2,9 @@
 
 NetEase Cloud Music API for Rust.
 
+`NcmClient` is the public client. `NcmApi` remains temporarily as a deprecated
+type alias for migration only.
+
 
 ### Usage
 
@@ -12,11 +15,11 @@ tokio = { version = "1", features = ["full"] }
 ```
 
 ```rust
-use ncmapi::NcmApi;
+use ncmapi::NcmClient;
 
 #[tokio::main]
 async fn main() -> std::result::Result<(), Box<dyn std::error:Error>> {
-    let api = NcmApi::default();
+    let api = NcmClient::default();
     let resp = api.cloud_search("mota", None).await;
 
     let res = resp.unwrap().deserialize_to_implict();
@@ -43,6 +46,9 @@ Most of the functions are self documented. If there is some confusion about the 
 ### Contribute
 
 If you think this package useful, please do make pull requests.
+
+Run the deterministic test suite with `cargo test`. Network checks are opt-in:
+`cargo test --features live-tests`.
 
 ### License
 

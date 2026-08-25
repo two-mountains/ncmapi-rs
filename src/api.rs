@@ -1,45 +1,99 @@
-use std::{time::Duration, usize};
+use std::time::Duration;
 
-use openssl::hash::{hash, MessageDigest};
-use rand::{Rng, RngCore};
-use serde_json::{json, Value};
+use openssl::hash::{MessageDigest, hash};
+use rand::RngExt;
+use serde_json::{Value, json};
 use serde_repr::{Deserialize_repr, Serialize_repr};
 
 use crate::{
-    client::{ApiClient, ApiClientBuilder, ApiRequestBuilder, ApiResponse, API_ROUTE},
     TResult,
+    client::{API_ROUTE, ApiClient, ApiClientBuilder, ApiRequestBuilder, ApiResponse},
 };
 
-/// API wrapper.
+/// Public NetEase Cloud Music API client.
 #[derive(Default)]
-pub struct NcmApi {
+pub struct NcmClient {
     client: ApiClient,
 }
 
-impl NcmApi {
-    /// NecmApi constructor
-    pub fn new(
-        enable_cache: bool,
-        cache_exp: Duration,
-        cache_clean_interval: Duration,
-        preserve_cookies: bool,
-        cookie_path: &str,
-    ) -> Self {
+/// Immutable configuration for [`NcmClient`].
+#[derive(Clone, Debug)]
+pub struct NcmClientConfig {
+    pub enable_cache: bool,
+    pub cache_ttl: Duration,
+    pub preserve_cookies: bool,
+    pub cookie_path: String,
+}
+
+impl Default for NcmClientConfig {
+    fn default() -> Self {
         Self {
-            client: ApiClientBuilder::new(cookie_path)
-                .cookie_path(cookie_path)
-                .cache(enable_cache)
-                .cache_exp(cache_exp)
-                .cache_clean_interval(cache_clean_interval)
-                .preserve_cookies(preserve_cookies)
-                .build()
-                .unwrap(),
+            enable_cache: true,
+            cache_ttl: Duration::from_secs(3 * 60),
+            preserve_cookies: true,
+            cookie_path: std::env::temp_dir()
+                .join("ncmapi-client-cookies")
+                .to_string_lossy()
+                .into_owned(),
         }
     }
 }
 
+/// Fluent construction of an immutable [`NcmClientConfig`].
+#[derive(Clone, Debug, Default)]
+pub struct NcmClientBuilder {
+    config: NcmClientConfig,
+}
+
+impl NcmClientBuilder {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn cache(mut self, enabled: bool) -> Self {
+        self.config.enable_cache = enabled;
+        self
+    }
+
+    pub fn cache_ttl(mut self, ttl: Duration) -> Self {
+        self.config.cache_ttl = ttl;
+        self
+    }
+
+    pub fn preserve_cookies(mut self, enabled: bool) -> Self {
+        self.config.preserve_cookies = enabled;
+        self
+    }
+
+    pub fn cookie_path(mut self, path: impl Into<String>) -> Self {
+        self.config.cookie_path = path.into();
+        self
+    }
+
+    pub fn build(self) -> TResult<NcmClient> {
+        NcmClient::new(self.config)
+    }
+}
+
+impl NcmClient {
+    /// Builds a client without hiding transport or filesystem initialization errors.
+    pub fn new(config: NcmClientConfig) -> TResult<Self> {
+        Ok(Self {
+            client: ApiClientBuilder::new(&config.cookie_path)
+                .cache(config.enable_cache)
+                .cache_exp(config.cache_ttl)
+                .preserve_cookies(config.preserve_cookies)
+                .build()?,
+        })
+    }
+
+    pub fn builder() -> NcmClientBuilder {
+        NcmClientBuilder::new()
+    }
+}
+
 /// apis
-impl NcmApi {
+impl NcmClient {
     async fn _search(&self, key: &str, route: &str, opt: Option<Value>) -> TResult<ApiResponse> {
         let r = ApiRequestBuilder::post(API_ROUTE[route])
             .set_data(limit_offset(30, 0))
@@ -350,11 +404,11 @@ impl NcmApi {
     /// required
     /// id: 歌曲 id
     pub async fn fm_trash(&self, id: usize) -> TResult<ApiResponse> {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         let u = format!(
             "https://music.163.com/weapi/radio/trash/add?alg=RT&songId={}&time={}",
             id,
-            rng.gen_range(10..20)
+            rng.random_range(10..20)
         );
         let r = ApiRequestBuilder::post(&u)
             .set_data(json!({ "songId": id }))
@@ -555,7 +609,7 @@ impl NcmApi {
     /// optional
     /// 可选参数 : time: 歌曲播放时间,单位为秒
     pub async fn scrobble(&self, id: usize, source_id: usize) -> TResult<ApiResponse> {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         let r = ApiRequestBuilder::post(API_ROUTE["scrobble"])
             .set_data(json!({
                 "logs": [{
@@ -565,7 +619,7 @@ impl NcmApi {
                             "end":      "playend",
                             "id":       id,
                             "sourceId": source_id,
-                            "time":     rng.gen_range(20..30),
+                            "time":     rng.random_range(20..30),
                             "type":     "song",
                             "wifi":     0,
                         }
@@ -612,10 +666,10 @@ impl NcmApi {
     /// 可选参数 : type : 如果传 'mobile' 则返回移动端数据
     pub async fn search_suggest(&self, keyword: &str, opt: Option<Value>) -> TResult<ApiResponse> {
         let mut device = "web";
-        if let Some(val) = opt {
-            if val["type"] == "mobile" {
-                device = "mobile"
-            }
+        if let Some(val) = opt
+            && val["type"] == "mobile"
+        {
+            device = "mobile"
         }
 
         let u = format!("{}{}", API_ROUTE["search_suggest"], device);
@@ -708,9 +762,9 @@ impl NcmApi {
             .cookie("MUSIC_U", self.client.base_url())
             .is_none()
         {
-            let mut rng = rand::thread_rng();
+            let mut rng = rand::rng();
             let mut token = [0u8; 16];
-            rng.fill_bytes(&mut token);
+            rng.fill(&mut token);
             rb = rb.add_cookie("_ntes_nuid", &hex::encode(token));
         }
 
@@ -932,7 +986,8 @@ fn md5_hex(pt: &[u8]) -> String {
 
 const ANONYMOUS_TOKEN: &str = "8aae43f148f990410b9a2af38324af24e87ab9227c9265627ddd10145db744295fcd8701dc45b1ab8985e142f491516295dd965bae848761274a577a62b0fdc54a50284d1e434dcc04ca6d1a52333c9a";
 
-#[cfg(test)]
+#[cfg(all(test, feature = "live-tests"))]
+#[allow(deprecated)] // Exercises the legacy alias as an explicit migration contract.
 mod tests {
     use serde::Deserialize;
     use tokio::fs;

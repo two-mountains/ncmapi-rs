@@ -2,9 +2,10 @@ use std::collections::HashMap;
 
 use super::UA;
 use crate::crypto::Crypto;
-use openssl::hash::{hash, MessageDigest};
+use crate::domain::{insert_json_field, merge_json_objects};
+use openssl::hash::{MessageDigest, hash};
 use serde::Serialize;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 #[derive(Serialize, Debug)]
 pub struct ApiRequest {
@@ -114,10 +115,8 @@ impl ApiRequestBuilder {
 
     //  data mutaion
     pub fn insert(mut self, key: &str, val: Value) -> Self {
-        let mut data = self.config.data.unwrap_or_else(|| json!({}));
-
-        data.as_object_mut().unwrap().insert(key.to_owned(), val);
-        self.config.data = Some(data);
+        let data = self.config.data.unwrap_or_else(|| json!({}));
+        self.config.data = Some(insert_json_field(data, key.to_owned(), val));
         self
     }
 
@@ -126,13 +125,8 @@ impl ApiRequestBuilder {
             return self;
         }
 
-        let mut data = self.config.data.unwrap_or_else(|| json!({}));
-        for (k, v) in val.as_object().unwrap() {
-            data.as_object_mut()
-                .unwrap()
-                .insert(k.to_owned(), v.to_owned());
-        }
-        self.config.data = Some(data);
+        let data = self.config.data.unwrap_or_else(|| json!({}));
+        self.config.data = Some(merge_json_objects(data, val));
         self
     }
 
@@ -269,10 +263,10 @@ pub(crate) type H = Value;
 mod tests {
     use serde_json::json;
 
-    use crate::client::api_request::Hm;
-    use crate::client::route::API_ROUTE;
     use crate::client::ApiRequestBuilder;
     use crate::client::UA;
+    use crate::client::api_request::Hm;
+    use crate::client::route::API_ROUTE;
 
     type Rb = ApiRequestBuilder;
 
