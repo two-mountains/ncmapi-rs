@@ -1,6 +1,6 @@
 [package]
 name = "ncmapi"
-version = "0.2.0"
+version = "1.0.0"
 authors = ["akatsuki <akatsuki@gmail.com>"]
 edition = "2024"
 rust-version = "1.98"
@@ -16,24 +16,19 @@ categories = ["api-bindings"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+async-trait = "0.1.92"
 base64 = "0.23.1"
 cookie = "0.18.2"
 hex = "0.4.3"
 moka = { version = "0.12.16", features = ["sync"] }
 openssl = "0.10.81"
-phf = { version = "0.14.0", features = ["macros"] }
 rand = "0.10.2"
-regex = "1.13.1"
 reqwest = { version = "0.13.4", default-features = false, features = ["cookies", "form", "json", "rustls"] }
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.151"
-serde_repr = "0.1.21"
 thiserror = "2.0.20"
 
 [dev-dependencies]
 proptest = "1"
 tokio = { version = "1.53.1", features = ["fs", "macros", "rt-multi-thread"] }
 wiremock = "0.6"
-
-[features]
-live-tests = []

@@ -4,23 +4,39 @@
 //! network. Keeping them as values-in/values-out makes the protocol executable
 //! in deterministic tests.
 
-use serde_json::{Map, Value};
+use crate::{Error, Result};
 
-pub(crate) fn merge_json_objects(base: Value, overlay: Value) -> Value {
-    let mut result = match base {
-        Value::Object(object) => object,
-        _ => Map::new(),
-    };
-
-    if let Value::Object(overlay) = overlay {
-        result.extend(overlay);
-    }
-
-    Value::Object(result)
+/// A zero-based page request shared by collection endpoints.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct Page {
+    limit: u16,
+    offset: u32,
 }
 
-pub(crate) fn insert_json_field(base: Value, key: String, value: Value) -> Value {
-    merge_json_objects(base, Value::Object(Map::from_iter([(key, value)])))
+impl Page {
+    /// Creates a page with a non-zero item limit.
+    pub fn new(limit: u16, offset: u32) -> Result<Self> {
+        if limit == 0 {
+            return Err(Error::InvalidInput {
+                field: "page limit",
+                reason: "must be greater than zero",
+            });
+        }
+        Ok(Self { limit, offset })
+    }
+
+    /// Creates the first page with a non-zero item limit.
+    pub fn first(limit: u16) -> Result<Self> {
+        Self::new(limit, 0)
+    }
+
+    pub(crate) const fn limit(self) -> u16 {
+        self.limit
+    }
+
+    pub(crate) const fn offset(self) -> u32 {
+        self.offset
+    }
 }
 
 pub(crate) fn request_id(timestamp_millis: u128, random_suffix: u16) -> String {
@@ -30,30 +46,25 @@ pub(crate) fn request_id(timestamp_millis: u128, random_suffix: u16) -> String {
 #[cfg(test)]
 mod tests {
     use proptest::prelude::*;
-    use serde_json::json;
 
-    use super::{insert_json_field, merge_json_objects, request_id};
-
-    #[test]
-    fn overlay_wins_without_mutating_the_input_value() {
-        let base = json!({"limit": 30, "offset": 0});
-        assert_eq!(
-            merge_json_objects(base, json!({"limit": 10})),
-            json!({"limit": 10, "offset": 0})
-        );
-    }
+    use super::{Page, request_id};
 
     #[test]
     fn request_id_is_deterministic_at_the_functional_core() {
         assert_eq!(request_id(1_724_000_000_000, 7), "1724000000000_0007");
     }
 
+    #[test]
+    fn pages_reject_a_zero_limit() {
+        assert!(Page::first(0).is_err());
+        assert_eq!(Page::new(20, 40).unwrap().offset(), 40);
+    }
+
     proptest! {
         #[test]
-        fn inserting_a_field_preserves_its_value(key in "[a-z]{1,12}", value in any::<i64>()) {
-            let merged = insert_json_field(json!({"existing": true}), key.clone(), json!(value));
-            prop_assert_eq!(&merged[&key], &json!(value));
-            prop_assert_eq!(&merged["existing"], &json!(true));
+        fn request_id_preserves_its_input_values(timestamp in any::<u64>(), suffix in 0_u16..1000) {
+            let id = request_id(u128::from(timestamp), suffix);
+            prop_assert_eq!(id, format!("{timestamp}_{suffix:04}"));
         }
     }
 }

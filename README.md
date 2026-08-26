@@ -2,53 +2,61 @@
 
 NetEase Cloud Music API for Rust.
 
-`NcmClient` is the public client. `NcmApi` remains temporarily as a deprecated
-type alias for migration only.
+`NcmClient` is the sole public SDK entry point. `NcmApi` remains only as a
+deprecated alias for a short migration window.
 
 
 ### Usage
 
 ```toml
 [dependencies]
-ncmapi = "0.1"
+ncmapi = "1"
 tokio = { version = "1", features = ["full"] }
 ```
 
 ```rust
-use ncmapi::NcmClient;
+use ncmapi::{NcmClient, SearchKind, SearchQuery};
 
 #[tokio::main]
 async fn main() -> std::result::Result<(), Box<dyn std::error:Error>> {
-    let api = NcmClient::default();
-    let resp = api.cloud_search("mota", None).await;
+    let api = NcmClient::builder().build()?;
+    let response = api
+        .discovery()
+        .search(SearchQuery::new("mota")?.kind(SearchKind::Artist))
+        .await?;
 
-    let res = resp.unwrap().deserialize_to_implict();
-    println!("{:#?}", res);
+    for song in response.body.result.songs {
+        println!("{} — {}", song.id, song.name);
+    }
 
     Ok(())
 }
 ```
 
 
-### Document
+### Architecture
 
-Most of the functions are self documented. If there is some confusion about the params of a funtion requires, figure out [here](https://neteasecloudmusicapi.vercel.app)
+The public surface is intentionally small:
 
+- `client.discovery()` searches the catalogue.
+- `client.library()` reads tracks and stream URLs.
+- `client.profile()` reads account and user information.
 
+Each service accepts value types and returns an `ApiResponse<T>` whose body is
+a stable domain model. Services create immutable request plans; `NcmClient`
+delegates them to an internal transport that owns protocol encryption, cookies,
+caching, and HTTP I/O. This keeps the domain layer deterministic and lets the
+test suite exercise it without accessing the external music service.
 
-### How it works
-
-* api: export api functions.
-* client:
-    * takes an ApiRequst, process it into a Request by presenting it with header and encrypt the payload etc. And then send requests to the server, takes the response and then returns the ApiResponse back.
-    * cache
+`1.0` removes the former `NcmApi` endpoint methods. Migrate calls to a focused
+service, for example `client.discovery().search(SearchQuery::new("mota")?)`.
 
 ### Contribute
 
 If you think this package useful, please do make pull requests.
 
-Run the deterministic test suite with `cargo test`. Network checks are opt-in:
-`cargo test --features live-tests`.
+Run the deterministic test suite with `cargo test`. The SDK deliberately does
+not run external-service checks in its normal development workflow.
 
 ### License
 

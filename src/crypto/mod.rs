@@ -53,7 +53,7 @@ impl LinuxapiForm {
     }
 }
 
-pub fn weapi(text: &[u8]) -> WeapiForm {
+pub fn weapi(text: &[u8]) -> Result<WeapiForm, ErrorStack> {
     let mut rng = rand::rng();
     let mut rand_buf = [0u8; 16];
     rng.fill(&mut rand_buf);
@@ -68,28 +68,28 @@ pub fn weapi(text: &[u8]) -> WeapiForm {
             text,
             PRESET_KEY.as_bytes(),
             Some(IV.as_bytes()),
-        ));
-        STANDARD.encode(aes_128_cbc(p.as_bytes(), &sk, Some(IV.as_bytes())))
+        )?);
+        STANDARD.encode(aes_128_cbc(p.as_bytes(), &sk, Some(IV.as_bytes()))?)
     };
 
     let enc_sec_key = {
         let reversed_sk = sk.iter().rev().copied().collect::<Vec<u8>>();
-        hex::encode(rsa(&reversed_sk, PUBLIC_KEY.as_bytes()))
+        hex::encode(rsa(&reversed_sk, PUBLIC_KEY.as_bytes())?)
     };
 
-    WeapiForm {
+    Ok(WeapiForm {
         params,
         enc_sec_key,
-    }
+    })
 }
 
-pub fn eapi(url: &[u8], data: &[u8]) -> EapiForm {
+pub fn eapi(url: &[u8], data: &[u8]) -> Result<EapiForm, ErrorStack> {
     let msg = format!(
         "nobody{}use{}md5forencrypt",
         String::from_utf8_lossy(url),
         String::from_utf8_lossy(data)
     );
-    let digest = hex::encode(hash(MessageDigest::md5(), msg.as_bytes()).unwrap());
+    let digest = hex::encode(hash(MessageDigest::md5(), msg.as_bytes())?);
 
     let text = {
         let d = "-36cd479b6b5-";
@@ -97,11 +97,11 @@ pub fn eapi(url: &[u8], data: &[u8]) -> EapiForm {
     };
 
     let params = {
-        let p = aes_128_ecb(&text, EAPI_KEY.as_bytes(), None);
+        let p = aes_128_ecb(&text, EAPI_KEY.as_bytes(), None)?;
         hex::encode_upper(p)
     };
 
-    EapiForm { params }
+    Ok(EapiForm { params })
 }
 
 #[allow(unused)]
@@ -109,16 +109,16 @@ pub fn eapi_decrypt(ct: &[u8]) -> Result<Vec<u8>, ErrorStack> {
     aes_128_ecb_decrypt(ct, EAPI_KEY.as_bytes(), None)
 }
 
-pub fn linuxapi(text: &[u8]) -> LinuxapiForm {
-    let ct = aes_128_ecb(text, LINUX_API_KEY.as_bytes(), None);
+pub fn linuxapi(text: &[u8]) -> Result<LinuxapiForm, ErrorStack> {
+    let ct = aes_128_ecb(text, LINUX_API_KEY.as_bytes(), None)?;
     let eparams = hex::encode_upper(ct);
 
-    LinuxapiForm { eparams }
+    Ok(LinuxapiForm { eparams })
 }
 
-fn aes_128_ecb(pt: &[u8], key: &[u8], iv: Option<&[u8]>) -> Vec<u8> {
+fn aes_128_ecb(pt: &[u8], key: &[u8], iv: Option<&[u8]>) -> Result<Vec<u8>, ErrorStack> {
     let cipher = Cipher::aes_128_ecb();
-    encrypt(cipher, key, iv, pt).unwrap()
+    encrypt(cipher, key, iv, pt)
 }
 
 fn aes_128_ecb_decrypt(ct: &[u8], key: &[u8], iv: Option<&[u8]>) -> Result<Vec<u8>, ErrorStack> {
@@ -126,20 +126,20 @@ fn aes_128_ecb_decrypt(ct: &[u8], key: &[u8], iv: Option<&[u8]>) -> Result<Vec<u
     decrypt(cipher, key, iv, ct)
 }
 
-fn aes_128_cbc(pt: &[u8], key: &[u8], iv: Option<&[u8]>) -> Vec<u8> {
+fn aes_128_cbc(pt: &[u8], key: &[u8], iv: Option<&[u8]>) -> Result<Vec<u8>, ErrorStack> {
     let cipher = Cipher::aes_128_cbc();
-    encrypt(cipher, key, iv, pt).unwrap()
+    encrypt(cipher, key, iv, pt)
 }
 
-fn rsa(pt: &[u8], key: &[u8]) -> Vec<u8> {
-    let rsa = Rsa::public_key_from_pem(key).unwrap();
+fn rsa(pt: &[u8], key: &[u8]) -> Result<Vec<u8>, ErrorStack> {
+    let rsa = Rsa::public_key_from_pem(key)?;
 
     let prefix = vec![0u8; 128 - pt.len()];
     let pt = [&prefix[..], pt].concat();
 
     let mut ct = vec![0; rsa.size() as usize];
-    rsa.public_encrypt(&pt, &mut ct, Padding::NONE).unwrap();
-    ct
+    rsa.public_encrypt(&pt, &mut ct, Padding::NONE)?;
+    Ok(ct)
 }
 
 #[cfg(test)]
@@ -151,7 +151,7 @@ mod tests {
     #[test]
     fn test_aes_128_ecb() {
         let pt = "plain text";
-        let ct = aes_128_ecb(pt.as_bytes(), EAPI_KEY.as_bytes(), None);
+        let ct = aes_128_ecb(pt.as_bytes(), EAPI_KEY.as_bytes(), None).expect("valid test cipher");
         let _pt = aes_128_ecb_decrypt(&ct, EAPI_KEY.as_bytes(), None);
         assert!(_pt.is_ok());
 
@@ -163,37 +163,38 @@ mod tests {
     #[test]
     fn test_aes_cbc() {
         let pt = "plain text";
-        let ct = aes_128_cbc(pt.as_bytes(), PRESET_KEY.as_bytes(), Some(IV.as_bytes()));
+        let ct = aes_128_cbc(pt.as_bytes(), PRESET_KEY.as_bytes(), Some(IV.as_bytes()))
+            .expect("valid test cipher");
         assert!(hex::encode(ct).ends_with("baf0"))
     }
 
     #[test]
     fn test_rsa() {
-        let ct = rsa(PRESET_KEY.as_bytes(), PUBLIC_KEY.as_bytes());
+        let ct = rsa(PRESET_KEY.as_bytes(), PUBLIC_KEY.as_bytes()).expect("valid public key");
         assert!(hex::encode(ct).ends_with("4413"));
     }
 
     #[test]
     fn test_weapi() {
-        weapi(r#"{"username": "alex"}"#.as_bytes());
+        weapi(r#"{"username": "alex"}"#.as_bytes()).expect("valid weapi payload");
     }
 
     #[test]
     fn test_eapi() {
-        let ct = eapi("/url".as_bytes(), "plain text".as_bytes());
+        let ct = eapi("/url".as_bytes(), "plain text".as_bytes()).expect("valid eapi payload");
         assert!(ct.params.ends_with("C3F3"));
     }
 
     #[test]
     fn test_eapi_decrypt() {
         let pt = "plain text";
-        let ct = aes_128_ecb(pt.as_bytes(), EAPI_KEY.as_bytes(), None);
+        let ct = aes_128_ecb(pt.as_bytes(), EAPI_KEY.as_bytes(), None).expect("valid test cipher");
         assert_eq!(pt.as_bytes(), &eapi_decrypt(&ct).unwrap())
     }
 
     #[test]
     fn test_linuxapi() {
-        let ct = linuxapi(r#""plain text""#.as_bytes());
+        let ct = linuxapi(r#""plain text""#.as_bytes()).expect("valid linuxapi payload");
         assert!(ct.eparams.ends_with("2250"));
     }
 }

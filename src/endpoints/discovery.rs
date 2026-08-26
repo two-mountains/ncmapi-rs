@@ -1,0 +1,118 @@
+use serde_json::json;
+
+use crate::{
+    ApiResponse, Error, NcmClient, Result, SearchBody,
+    transport::{CLOUD_SEARCH, RequestPlanBuilder},
+};
+
+/// Discovery endpoints exposed by [`NcmClient::discovery`].
+pub struct Discovery<'client> {
+    client: &'client NcmClient,
+}
+
+impl NcmClient {
+    pub fn discovery(&self) -> Discovery<'_> {
+        Discovery { client: self }
+    }
+}
+
+/// The category searched by [`Discovery::search`].
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+#[repr(u16)]
+pub enum SearchKind {
+    #[default]
+    Song = 1,
+    Album = 10,
+    Artist = 100,
+    Playlist = 1000,
+    User = 1002,
+    MusicVideo = 1004,
+    Lyric = 1006,
+    Podcast = 1009,
+    Video = 1014,
+    All = 1018,
+}
+
+/// Validated-by-construction input to a search request.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct SearchQuery {
+    keywords: String,
+    kind: SearchKind,
+    limit: u16,
+    offset: u32,
+}
+
+impl SearchQuery {
+    pub fn new(keywords: impl Into<String>) -> Result<Self> {
+        let keywords = keywords.into();
+        if keywords.trim().is_empty() {
+            return Err(Error::InvalidInput {
+                field: "search keywords",
+                reason: "must not be blank",
+            });
+        }
+        Ok(Self {
+            keywords,
+            kind: SearchKind::Song,
+            limit: 30,
+            offset: 0,
+        })
+    }
+
+    pub fn kind(mut self, kind: SearchKind) -> Self {
+        self.kind = kind;
+        self
+    }
+
+    pub fn page(mut self, limit: u16, offset: u32) -> Result<Self> {
+        if limit == 0 {
+            return Err(Error::InvalidInput {
+                field: "search limit",
+                reason: "must be greater than zero",
+            });
+        }
+        self.limit = limit;
+        self.offset = offset;
+        Ok(self)
+    }
+}
+
+impl<'client> Discovery<'client> {
+    /// Searches NetEase Cloud Music with a strongly typed query.
+    pub async fn search(&self, query: SearchQuery) -> Result<ApiResponse<SearchBody>> {
+        let request = RequestPlanBuilder::post(CLOUD_SEARCH)
+            .payload(json!({
+                "s": query.keywords,
+                "type": query.kind as u16,
+                "limit": query.limit,
+                "offset": query.offset,
+            }))
+            .build();
+
+        self.client.execute(request).await?.decode()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{SearchKind, SearchQuery};
+
+    #[test]
+    fn search_query_is_an_immutable_value_builder() {
+        let query = SearchQuery::new("mota")
+            .unwrap()
+            .kind(SearchKind::Artist)
+            .page(10, 20)
+            .unwrap();
+
+        assert_eq!(query.kind, SearchKind::Artist);
+        assert_eq!(query.limit, 10);
+        assert_eq!(query.offset, 20);
+    }
+
+    #[test]
+    fn search_query_rejects_blank_keywords_and_zero_limit() {
+        assert!(SearchQuery::new(" \t ").is_err());
+        assert!(SearchQuery::new("mota").unwrap().page(0, 0).is_err());
+    }
+}
