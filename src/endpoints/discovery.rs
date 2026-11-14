@@ -190,7 +190,7 @@ mod tests {
         impl Transport for Stub {
             async fn execute(&self, _: RequestPlan) -> crate::Result<Response> {
                 Ok(Response::new(
-                    r#"{"code":200,"list":[{"id":1,"name":"热歌榜","trackCount":200,"updateFrequency":"每天更新"}]}"#
+                    r#"{"code":200,"list":[{"id":1,"name":"热歌榜","trackCount":200,"updateFrequency":"每天更新","updateFrequency":"刚刚更新"}]}"#
                         .as_bytes()
                         .to_vec(),
                 ))

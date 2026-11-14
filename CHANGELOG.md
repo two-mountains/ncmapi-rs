@@ -2,6 +2,13 @@
 
 All notable changes to this project are documented here.
 
+## 1.4.1
+
+### Fixed
+
+- `ToplistEntry` is deserialized by hand so duplicate `updateFrequency` keys
+  (present in the live chart payload) no longer abort the whole list.
+
 ## 1.4.0
 
 ### Added

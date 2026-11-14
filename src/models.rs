@@ -290,19 +290,45 @@ pub struct LikeListBody {
 }
 
 /// A chart entry from the toplist endpoint.
-#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq)]
-#[serde(rename_all = "camelCase")]
+///
+/// Deserialized by hand: NetEase's chart payload contains duplicate
+/// `updateFrequency` keys on some entries, which serde's derive rejects.
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct ToplistEntry {
-    #[serde(default, deserialize_with = "null_default")]
     pub id: u64,
-    #[serde(default, deserialize_with = "null_default")]
     pub name: String,
-    #[serde(default, deserialize_with = "null_default")]
     pub cover_img_url: String,
-    #[serde(default, deserialize_with = "null_default")]
     pub track_count: u64,
-    #[serde(default, deserialize_with = "null_default")]
     pub update_frequency: String,
+}
+
+impl<'de> Deserialize<'de> for ToplistEntry {
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let value = serde_json::Value::deserialize(deserializer)?;
+        let text = |key: &str| {
+            value
+                .get(key)
+                .and_then(serde_json::Value::as_str)
+                .unwrap_or_default()
+                .to_owned()
+        };
+        let number = |key: &str| {
+            value
+                .get(key)
+                .and_then(serde_json::Value::as_u64)
+                .unwrap_or_default()
+        };
+        Ok(Self {
+            id: number("id"),
+            name: text("name"),
+            cover_img_url: text("coverImgUrl"),
+            track_count: number("trackCount"),
+            update_frequency: text("updateFrequency"),
+        })
+    }
 }
 
 /// The payload of the toplist endpoint.
