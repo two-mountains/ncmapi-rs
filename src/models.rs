@@ -20,7 +20,11 @@ where
 /// JSON.
 #[derive(Clone, Debug, Deserialize)]
 pub struct ApiResponse<T> {
-    pub code: u16,
+    /// NetEase uses negative codes for failures (for example `-460`).
+    pub code: i32,
+    /// Human-readable provider message, when present.
+    #[serde(default)]
+    pub message: Option<String>,
     #[serde(flatten)]
     pub body: T,
 }

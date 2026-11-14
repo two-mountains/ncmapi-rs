@@ -2,6 +2,14 @@
 
 All notable changes to this project are documented here.
 
+## 1.5.0
+
+### Changed
+
+- `ApiResponse.code` is now `i32` and responses expose the provider `message`.
+  NetEase returns negative codes such as `-460` for refused actions, which the
+  previous `u16` could not represent (the body failed to decode).
+
 ## 1.4.1
 
 ### Fixed

@@ -68,6 +68,7 @@ impl<'client> Library<'client> {
         if detail.code != 200 {
             return Ok(ApiResponse {
                 code: detail.code,
+                message: detail.message,
                 body: TrackDetailsBody::default(),
             });
         }
@@ -103,6 +104,7 @@ impl<'client> Library<'client> {
             if response.code != 200 {
                 return Ok(ApiResponse {
                     code: response.code,
+                    message: response.message,
                     body: TrackDetailsBody::default(),
                 });
             }
@@ -110,6 +112,7 @@ impl<'client> Library<'client> {
         }
         Ok(ApiResponse {
             code: 200,
+            message: None,
             body: TrackDetailsBody { songs },
         })
     }
