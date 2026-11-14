@@ -2,6 +2,13 @@
 
 All notable changes to this project are documented here.
 
+## 1.1.2
+
+### Fixed
+
+- Correct the QR login test stub to assert the unikey route for `qr_start` and
+  the check route for `qr_poll`.
+
 ## 1.1.1
 
 ### Fixed

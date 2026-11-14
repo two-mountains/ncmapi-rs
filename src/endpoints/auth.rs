@@ -65,28 +65,28 @@ mod tests {
     };
 
     struct StubTransport {
+        url: &'static str,
         body: &'static str,
     }
 
     #[async_trait]
     impl Transport for StubTransport {
         async fn execute(&self, plan: RequestPlan) -> Result<Response> {
-            // NetEase only observes QR confirmation on the weapi-prefixed route.
-            assert_eq!(
-                plan.into_parts().url,
-                "https://music.163.com/weapi/login/qrcode/client/login"
-            );
+            assert_eq!(plan.into_parts().url, self.url);
             Ok(Response::new(self.body.as_bytes().to_vec()))
         }
     }
 
-    fn client(body: &'static str) -> NcmClient {
-        NcmClient::with_transport(Arc::new(StubTransport { body }))
+    const UNIKEY: &str = "https://music.163.com/weapi/login/qrcode/unikey";
+    const CHECK: &str = "https://music.163.com/weapi/login/qrcode/client/login";
+
+    fn client(url: &'static str, body: &'static str) -> NcmClient {
+        NcmClient::with_transport(Arc::new(StubTransport { url, body }))
     }
 
     #[tokio::test]
     async fn qr_start_returns_a_key_and_login_url() {
-        let response = client(r#"{"code":200,"unikey":"abc123"}"#)
+        let response = client(UNIKEY, r#"{"code":200,"unikey":"abc123"}"#)
             .auth()
             .qr_start()
             .await
@@ -100,7 +100,7 @@ mod tests {
 
     #[tokio::test]
     async fn qr_poll_decodes_state_codes() {
-        let response = client(r#"{"code":803,"nickname":"ben"}"#)
+        let response = client(CHECK, r#"{"code":803,"nickname":"ben"}"#)
             .auth()
             .qr_poll("abc123")
             .await
@@ -111,7 +111,7 @@ mod tests {
 
     #[tokio::test]
     async fn blank_keys_are_rejected() {
-        let client = client("{}");
+        let client = client(CHECK, "{}");
         assert!(client.auth().qr_poll(" ").await.is_err());
     }
 }
