@@ -53,6 +53,8 @@ pub(crate) struct HttpTransport {
     client: Client,
     store: Store,
     jar: Arc<dyn CookieStore>,
+    /// Stable per-process device id used by eapi request headers.
+    device_id: String,
 }
 
 #[derive(Debug)]
@@ -111,6 +113,13 @@ impl HttpTransportBuilder {
             Err(error) => return Err(error),
         }
 
+        let device_id = (0..52)
+            .map(|_| {
+                const HEX: &[u8] = b"0123456789ABCDEF";
+                HEX[rand::rng().random_range(0..16)] as char
+            })
+            .collect::<String>();
+
         Ok(HttpTransport {
             store: Store::new(config.cache_ttl),
             config,
@@ -119,6 +128,7 @@ impl HttpTransportBuilder {
                 .build()
                 .map_err(Error::Http)?,
             jar,
+            device_id,
         })
     }
 }
@@ -302,10 +312,10 @@ impl HttpTransport {
             .map_err(|error| Error::Protocol(error.to_string()))?;
         let defaults = [
             ("osver", "undefined"),
-            ("deviceId", "undefined"),
+            ("deviceId", self.device_id.as_str()),
             ("appver", "8.0.0"),
             ("versioncode", "140"),
-            ("mobilename", "undefined"),
+            ("mobilename", self.device_id.as_str()),
             ("resolution", "1920x1080"),
             ("__csrf", ""),
             ("os", "android"),

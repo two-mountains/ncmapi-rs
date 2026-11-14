@@ -2,6 +2,15 @@
 
 All notable changes to this project are documented here.
 
+## 1.3.0
+
+### Changed
+
+- QR login uses the new-client eapi protocol: `/eapi/login/qrcode/*`, `type: 3`,
+  `noCheckToken: true`, with a generated device id in the eapi header. The legacy
+  weapi `type: 1` flow is rejected by NetEase with `8821` (behavioral
+  verification) after the user confirms.
+
 ## 1.2.1
 
 ### Fixed

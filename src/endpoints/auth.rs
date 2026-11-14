@@ -9,6 +9,7 @@ use serde_json::json;
 
 use crate::{
     ApiResponse, Error, NcmClient, QrKeyBody, QrLoginBody, Result,
+    crypto::Crypto,
     transport::{QR_LOGIN, QR_UNIKEY, RequestPlanBuilder},
 };
 
@@ -25,9 +26,15 @@ impl NcmClient {
 
 impl Auth<'_> {
     /// Starts a QR login and returns the key to render.
+    ///
+    /// Uses the new-client protocol (`eapi`, `type: 3`). The legacy weapi
+    /// `type: 1` flow is rejected with `8821` (“behavioral verification”) once
+    /// the user confirms, because it lacks the client fingerprint.
     pub async fn qr_start(&self) -> Result<ApiResponse<QrKeyBody>> {
         let request = RequestPlanBuilder::post(QR_UNIKEY)
-            .payload(json!({ "type": 1 }))
+            .encryption(Crypto::Eapi)
+            .api_path("/api/login/qrcode/unikey")
+            .payload(json!({ "type": 3, "noCheckToken": true }))
             .uncacheable()
             .build();
         self.client.execute(request).await?.decode()
@@ -48,7 +55,9 @@ impl Auth<'_> {
             });
         }
         let request = RequestPlanBuilder::post(QR_LOGIN)
-            .payload(json!({ "key": key, "type": 1 }))
+            .encryption(Crypto::Eapi)
+            .api_path("/api/login/qrcode/client/login")
+            .payload(json!({ "key": key, "type": 3, "noCheckToken": true }))
             .uncacheable()
             .build();
         self.client.execute(request).await?.decode()
@@ -74,13 +83,16 @@ mod tests {
     #[async_trait]
     impl Transport for StubTransport {
         async fn execute(&self, plan: RequestPlan) -> Result<Response> {
-            assert_eq!(plan.into_parts().url, self.url);
+            let parts = plan.into_parts();
+            assert_eq!(parts.url, self.url);
+            assert_eq!(parts.encryption, crate::crypto::Crypto::Eapi);
+            assert_eq!(parts.payload["type"], 3);
             Ok(Response::new(self.body.as_bytes().to_vec()))
         }
     }
 
-    const UNIKEY: &str = "https://music.163.com/weapi/login/qrcode/unikey";
-    const CHECK: &str = "https://music.163.com/weapi/login/qrcode/client/login";
+    const UNIKEY: &str = "https://music.163.com/eapi/login/qrcode/unikey";
+    const CHECK: &str = "https://music.163.com/eapi/login/qrcode/client/login";
 
     fn client(url: &'static str, body: &'static str) -> NcmClient {
         NcmClient::with_transport(Arc::new(StubTransport { url, body }))
