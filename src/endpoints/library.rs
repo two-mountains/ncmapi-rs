@@ -96,10 +96,7 @@ impl<'client> Library<'client> {
             .collect();
         let mut songs = Vec::with_capacity(page.len());
         for chunk in page.chunks(500) {
-            let ids = chunk
-                .iter()
-                .map(|id| TrackId(*id))
-                .collect::<Vec<_>>();
+            let ids = chunk.iter().map(|id| TrackId(*id)).collect::<Vec<_>>();
             let mut response = self.tracks(&ids).await?;
             if response.code != 200 {
                 return Ok(ApiResponse {
@@ -213,7 +210,11 @@ mod tests {
     async fn lyrics_expose_text_and_translation() {
         let body = r#"{"code":200,"lrc":{"lyric":"[00:00.00]hello"},
             "tlyric":{"lyric":"[00:00.00]你好"}}"#;
-        let response = client("https://music.163.com/api/song/lyric", body).library().lyrics(1).await.unwrap();
+        let response = client("https://music.163.com/api/song/lyric", body)
+            .library()
+            .lyrics(1)
+            .await
+            .unwrap();
         assert_eq!(response.body.text(), "[00:00.00]hello");
         assert_eq!(response.body.translation(), Some("[00:00.00]你好"));
         assert_eq!(LyricsBody::default().text(), "");
