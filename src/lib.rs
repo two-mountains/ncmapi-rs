@@ -9,12 +9,13 @@ mod sdk;
 mod transport;
 
 pub use domain::Page;
-pub use endpoints::{Discovery, Library, Profile, SearchKind, SearchQuery};
+pub use endpoints::{Auth, Discovery, Library, Profile, SearchKind, SearchQuery};
 pub use error::{Error, Result};
 pub use models::{
-    AccountBody, Album, ApiResponse, Artist, Playlist, SearchBody, SearchResults, StreamUrl,
-    StreamUrlsBody, Track, TrackDetailsBody, TrackId, UserDetailsBody, UserId, UserPlaylistsBody,
-    UserProfile,
+    AccountBody, Album, ApiResponse, Artist, Creator, Lyric, LyricsBody, Playlist,
+    PlaylistDetail, PlaylistDetailBody, QrKeyBody, QrLoginBody, SearchBody, SearchResults,
+    StreamUrl, StreamUrlsBody, Track, TrackDetailsBody, TrackId, UserDetailsBody, UserId,
+    UserPlaylistsBody, UserProfile,
 };
 pub use sdk::{NcmClient, NcmClientBuilder};
 #[deprecated(note = "use NcmClient instead")]

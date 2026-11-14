@@ -80,6 +80,10 @@ pub struct SearchResults {
     #[serde(default)]
     pub songs: Vec<Track>,
     #[serde(default)]
+    pub playlists: Vec<Playlist>,
+    #[serde(default)]
+    pub artists: Vec<Artist>,
+    #[serde(default)]
     pub has_more: bool,
 }
 
@@ -127,13 +131,123 @@ pub struct UserDetailsBody {
     pub profile: Option<UserProfile>,
 }
 
-/// A playlist projection.
+/// The account that owns a playlist.
 #[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct Creator {
+    #[serde(default)]
+    pub user_id: u64,
+    #[serde(default)]
+    pub nickname: String,
+}
+
+/// A playlist projection shared by search and user-library results.
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq)]
+#[serde(rename_all = "camelCase")]
 pub struct Playlist {
     pub id: u64,
     #[serde(default)]
     pub name: String,
+    #[serde(default)]
     pub description: Option<String>,
+    #[serde(default)]
+    pub track_count: u64,
+    #[serde(default)]
+    pub cover_img_url: String,
+    #[serde(default)]
+    pub creator: Option<Creator>,
+}
+
+/// A playlist with its first page of tracks.
+#[derive(Clone, Debug, Default, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct PlaylistDetail {
+    pub id: u64,
+    #[serde(default)]
+    pub name: String,
+    #[serde(default)]
+    pub description: Option<String>,
+    #[serde(default)]
+    pub track_count: u64,
+    #[serde(default)]
+    pub cover_img_url: String,
+    #[serde(default)]
+    pub creator: Option<Creator>,
+    #[serde(default)]
+    pub tracks: Vec<Track>,
+}
+
+/// The payload of a playlist-detail response.
+#[derive(Clone, Debug, Default, Deserialize, PartialEq)]
+pub struct PlaylistDetailBody {
+    #[serde(default)]
+    pub playlist: Option<PlaylistDetail>,
+}
+
+/// One lyric document. NetEase returns LRC-formatted text, optionally with
+/// translation and romanisation in sibling fields.
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq)]
+pub struct Lyric {
+    #[serde(default)]
+    pub lyric: String,
+}
+
+/// The payload of a lyric response.
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq)]
+pub struct LyricsBody {
+    #[serde(default)]
+    pub lrc: Option<Lyric>,
+    #[serde(default)]
+    pub tlyric: Option<Lyric>,
+    #[serde(default)]
+    pub romalrc: Option<Lyric>,
+}
+
+impl LyricsBody {
+    /// The original lyric text, or an empty string when the track has none.
+    #[must_use]
+    pub fn text(&self) -> &str {
+        self.lrc.as_ref().map_or("", |lyric| lyric.lyric.as_str())
+    }
+
+    /// The translated lyric text, when available.
+    #[must_use]
+    pub fn translation(&self) -> Option<&str> {
+        self.tlyric
+            .as_ref()
+            .map(|lyric| lyric.lyric.as_str())
+            .filter(|text| !text.is_empty())
+    }
+}
+
+/// The payload that starts a QR login flow.
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq)]
+pub struct QrKeyBody {
+    #[serde(default)]
+    pub unikey: String,
+}
+
+impl QrKeyBody {
+    /// The URL to encode as a QR code for the NetEase mobile app.
+    #[must_use]
+    pub fn login_url(&self) -> String {
+        format!("https://music.163.com/login?codekey={}", self.unikey)
+    }
+}
+
+/// The payload polled while a QR login is in progress.
+///
+/// The status code lives on [`ApiResponse::code`]:
+/// `800` expired, `801` waiting, `802` scanned, `803` confirmed.
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct QrLoginBody {
+    #[serde(default)]
+    pub message: Option<String>,
+    #[serde(default)]
+    pub nickname: Option<String>,
+    #[serde(default)]
+    pub avatar_url: Option<String>,
 }
 
 /// The payload returned by a user's playlist query.

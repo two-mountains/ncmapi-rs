@@ -34,7 +34,8 @@ use crate::{
 pub(crate) use request::{RequestPlan, RequestPlanBuilder};
 pub(crate) use response::Response;
 pub(crate) use routes::{
-    ACCOUNT, CLOUD_SEARCH, STREAM_URLS, TRACK_DETAILS, USER_PLAYLISTS, user_details,
+    ACCOUNT, CLOUD_SEARCH, LYRIC, PLAYLIST_DETAIL, PLAYLIST_TRACKS, QR_LOGIN, QR_UNIKEY,
+    STREAM_URLS, TRACK_DETAILS, USER_PLAYLISTS, user_details,
 };
 
 /// Side-effect boundary used by endpoint use-cases.

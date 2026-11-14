@@ -38,9 +38,10 @@ async fn main() -> std::result::Result<(), Box<dyn std::error:Error>> {
 
 The public surface is intentionally small:
 
-- `client.discovery()` searches the catalogue.
-- `client.library()` reads tracks and stream URLs.
+- `client.discovery()` searches the catalogue (tracks, playlists, artists).
+- `client.library()` reads tracks, stream URLs, playlists and lyrics.
 - `client.profile()` reads account and user information.
+- `client.auth()` starts and polls QR logins.
 
 Each service accepts value types and returns an `ApiResponse<T>` whose body is
 a stable domain model. Services create immutable request plans; `NcmClient`
@@ -50,6 +51,18 @@ test suite exercise it without accessing the external music service.
 
 `1.0` removes the former `NcmApi` endpoint methods. Migrate calls to a focused
 service, for example `client.discovery().search(SearchQuery::new("mota")?)`.
+
+### Playlists, lyrics and QR login
+
+```rust
+let detail = api.library().playlist_detail(24381616).await?;
+let tracks = api.library().playlist_tracks(24381616, 500, 0).await?;
+let lyrics = api.library().lyrics(track_id).await?;
+
+let qr = api.auth().qr_start().await?;
+println!("{}", qr.body.login_url());          // encode this as a QR code
+let status = api.auth().qr_poll(&qr.body.unikey).await?; // code 803 = confirmed
+```
 
 ### Contribute
 
