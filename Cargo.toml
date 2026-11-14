@@ -1,6 +1,6 @@
 [package]
 name = "ncmapi"
-version = "1.5.0"
+version = "1.6.0"
 authors = ["akatsuki <akatsuki@gmail.com>"]
 edition = "2024"
 rust-version = "1.98"
@@ -19,10 +19,14 @@ categories = ["api-bindings"]
 async-trait = "0.1.92"
 base64 = "0.23.1"
 cookie = "0.18.2"
+aes = "0.8"
+cbc = "0.1"
+cipher = { version = "0.4", features = ["alloc", "block-padding"] }
 hex = "0.4.3"
+md-5 = "0.10"
 moka = { version = "0.12.16", features = ["sync"] }
-openssl = "0.10.81"
 rand = "0.10.2"
+rsa = { version = "0.9", features = ["pem"] }
 reqwest = { version = "0.13.4", default-features = false, features = ["cookies", "form", "json", "rustls", "socks"] }
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.151"

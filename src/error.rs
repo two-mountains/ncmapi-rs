@@ -30,8 +30,8 @@ pub enum Error {
     #[error("protocol invariant violated: {0}")]
     Protocol(String),
 
-    #[error("cryptographic operation failed")]
-    Crypto(#[from] openssl::error::ErrorStack),
+    #[error("cryptographic operation failed: {0}")]
+    Crypto(#[from] crate::crypto::CryptoError),
 
     #[error("JSON serialization or deserialization failed")]
     Json(#[from] serde_json::Error),

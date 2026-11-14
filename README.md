@@ -1,6 +1,7 @@
 <h1 align=center>ncmapi-rs</h1>
 
-NetEase Cloud Music API for Rust.
+NetEase Cloud Music API for Rust. Pure-Rust crypto (no OpenSSL), rustls for
+TLS, and a transport that never caches mutations.
 
 `NcmClient` is the sole public SDK entry point. `NcmApi` remains only as a
 deprecated alias for a short migration window.

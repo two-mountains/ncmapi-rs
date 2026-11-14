@@ -5,7 +5,7 @@
 
 use std::collections::BTreeMap;
 
-use openssl::hash::{MessageDigest, hash};
+use md5::{Digest, Md5};
 use serde::Serialize;
 use serde_json::{Value, json};
 
@@ -83,7 +83,7 @@ impl RequestPlanBuilder {
 impl RequestPlan {
     pub(crate) fn id(&self) -> TResult<String> {
         let serialized = serde_json::to_vec(self)?;
-        Ok(hex::encode(hash(MessageDigest::md5(), &serialized)?))
+        Ok(hex::encode(Md5::digest(&serialized)))
     }
 
     pub(crate) const fn cacheable(&self) -> bool {

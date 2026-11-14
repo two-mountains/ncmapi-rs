@@ -2,6 +2,15 @@
 
 All notable changes to this project are documented here.
 
+## 1.6.0
+
+### Changed
+
+- Protocol crypto is pure Rust: AES-128-ECB/CBC (`aes` + `cbc`), MD5 (`md-5`)
+  and raw RSA (`rsa`) replace `openssl`. Ciphertext fixtures are unchanged, so
+  the wire protocol is identical. Removes the system/Homebrew OpenSSL
+  requirement and makes cross-compilation (macOS x86_64, Linux arm64) trivial.
+
 ## 1.5.0
 
 ### Changed
