@@ -2,6 +2,13 @@
 
 All notable changes to this project are documented here.
 
+## 1.1.1
+
+### Fixed
+
+- QR login now uses the `/weapi/login/qrcode/*` routes. The `/api/*` paths
+  return scan state but never observe confirmation, so polling waited forever.
+
 ## 1.1.0
 
 ### Added

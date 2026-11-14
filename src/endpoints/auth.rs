@@ -70,7 +70,12 @@ mod tests {
 
     #[async_trait]
     impl Transport for StubTransport {
-        async fn execute(&self, _: RequestPlan) -> Result<Response> {
+        async fn execute(&self, plan: RequestPlan) -> Result<Response> {
+            // NetEase only observes QR confirmation on the weapi-prefixed route.
+            assert_eq!(
+                plan.into_parts().url,
+                "https://music.163.com/weapi/login/qrcode/client/login"
+            );
             Ok(Response::new(self.body.as_bytes().to_vec()))
         }
     }
