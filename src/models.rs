@@ -158,6 +158,12 @@ pub struct Playlist {
     pub creator: Option<Creator>,
 }
 
+/// A lightweight track reference used by playlist detail payloads.
+#[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq)]
+pub struct TrackRef {
+    pub id: u64,
+}
+
 /// A playlist with its first page of tracks.
 #[derive(Clone, Debug, Default, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -175,6 +181,10 @@ pub struct PlaylistDetail {
     pub creator: Option<Creator>,
     #[serde(default)]
     pub tracks: Vec<Track>,
+    /// Every track id in the playlist, in order. `tracks` only carries the
+    /// first page, so this is the authoritative listing.
+    #[serde(default)]
+    pub track_ids: Vec<TrackRef>,
 }
 
 /// The payload of a playlist-detail response.

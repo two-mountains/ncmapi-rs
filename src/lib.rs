@@ -14,8 +14,8 @@ pub use error::{Error, Result};
 pub use models::{
     AccountBody, Album, ApiResponse, Artist, Creator, Lyric, LyricsBody, Playlist,
     PlaylistDetail, PlaylistDetailBody, QrKeyBody, QrLoginBody, SearchBody, SearchResults,
-    StreamUrl, StreamUrlsBody, Track, TrackDetailsBody, TrackId, UserDetailsBody, UserId,
-    UserPlaylistsBody, UserProfile,
+    StreamUrl, StreamUrlsBody, Track, TrackDetailsBody, TrackId, TrackRef, UserDetailsBody,
+    UserId, UserPlaylistsBody, UserProfile,
 };
 pub use sdk::{NcmClient, NcmClientBuilder};
 #[deprecated(note = "use NcmClient instead")]

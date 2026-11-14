@@ -4,7 +4,7 @@ use crate::{
     ApiResponse, LyricsBody, NcmClient, PlaylistDetailBody, Result, StreamUrlsBody,
     TrackDetailsBody, TrackId,
     crypto::Crypto,
-    transport::{LYRIC, PLAYLIST_DETAIL, PLAYLIST_TRACKS, RequestPlanBuilder, STREAM_URLS, TRACK_DETAILS},
+    transport::{LYRIC, PLAYLIST_DETAIL, RequestPlanBuilder, STREAM_URLS, TRACK_DETAILS},
 };
 
 /// Music-library endpoints exposed by [`NcmClient::library`].
@@ -42,6 +42,10 @@ impl<'client> Library<'client> {
 
     /// Fetches a page of a playlist's tracks.
     ///
+    /// Playlist detail returns the full ordered `trackIds` list, so paging is
+    /// resolved locally and the selected ids are batched through the song
+    /// detail endpoint.
+    ///
     /// # Errors
     ///
     /// Rejects a zero limit before any request is made.
@@ -57,10 +61,58 @@ impl<'client> Library<'client> {
                 reason: "must be greater than zero",
             });
         }
-        let request = RequestPlanBuilder::post(PLAYLIST_TRACKS)
-            .payload(json!({ "id": id, "n": limit, "offset": offset }))
-            .build();
-        self.client.execute(request).await?.decode()
+
+        let detail = self.playlist_detail(id).await?;
+        if detail.code != 200 {
+            return Ok(ApiResponse {
+                code: detail.code,
+                body: TrackDetailsBody::default(),
+            });
+        }
+        let mut ids: Vec<u64> = detail
+            .body
+            .playlist
+            .as_ref()
+            .map(|playlist| {
+                playlist
+                    .track_ids
+                    .iter()
+                    .map(|track| track.id)
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_default();
+        if ids.is_empty() {
+            ids = detail
+                .body
+                .playlist
+                .map(|playlist| playlist.tracks.into_iter().map(|track| track.id).collect())
+                .unwrap_or_default();
+        }
+
+        let page: Vec<u64> = ids
+            .into_iter()
+            .skip(offset as usize)
+            .take(usize::from(limit))
+            .collect();
+        let mut songs = Vec::with_capacity(page.len());
+        for chunk in page.chunks(500) {
+            let ids = chunk
+                .iter()
+                .map(|id| TrackId(*id))
+                .collect::<Vec<_>>();
+            let mut response = self.tracks(&ids).await?;
+            if response.code != 200 {
+                return Ok(ApiResponse {
+                    code: response.code,
+                    body: TrackDetailsBody::default(),
+                });
+            }
+            songs.append(&mut response.body.songs);
+        }
+        Ok(ApiResponse {
+            code: 200,
+            body: TrackDetailsBody { songs },
+        })
     }
 
     /// Fetches the LRC lyric document for a track.
@@ -128,15 +180,33 @@ mod tests {
         assert_eq!(playlist.tracks[0].name, "mota");
     }
 
+    struct PlaylistStub;
+
+    #[async_trait]
+    impl Transport for PlaylistStub {
+        async fn execute(&self, plan: RequestPlan) -> Result<Response> {
+            let url = plan.into_parts().url;
+            let body = if url.ends_with("/api/v6/playlist/detail") {
+                r#"{"code":200,"playlist":{"id":5,"name":"Focus",
+                    "trackIds":[{"id":2},{"id":1},{"id":3}],"tracks":[]}}"#
+            } else if url.ends_with("/api/v3/song/detail") {
+                r#"{"code":200,"songs":[{"id":2,"name":"second"},{"id":1,"name":"first"}]}"#
+            } else {
+                panic!("unexpected request to {url}");
+            };
+            Ok(Response::new(body.as_bytes().to_vec()))
+        }
+    }
+
     #[tokio::test]
-    async fn playlist_tracks_uses_paging_payload() {
-        let body = r#"{"code":200,"songs":[{"id":2,"name":"second"}]}"#;
-        let response = client("https://music.163.com/api/playlist/track/all", body)
-            .library()
-            .playlist_tracks(5, 100, 0)
-            .await
-            .unwrap();
-        assert_eq!(response.body.songs.len(), 1);
+    async fn playlist_tracks_pages_through_track_ids() {
+        let client = NcmClient::with_transport(Arc::new(PlaylistStub));
+        let response = client.library().playlist_tracks(5, 2, 0).await.unwrap();
+        assert_eq!(response.body.songs.len(), 2);
+        assert_eq!(response.body.songs[0].name, "second");
+
+        let second = client.library().playlist_tracks(5, 2, 2).await.unwrap();
+        assert_eq!(second.body.songs.len(), 2);
     }
 
     #[tokio::test]
