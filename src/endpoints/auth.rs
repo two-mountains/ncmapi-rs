@@ -28,6 +28,7 @@ impl Auth<'_> {
     pub async fn qr_start(&self) -> Result<ApiResponse<QrKeyBody>> {
         let request = RequestPlanBuilder::post(QR_UNIKEY)
             .payload(json!({ "type": 1 }))
+            .uncacheable()
             .build();
         self.client.execute(request).await?.decode()
     }
@@ -48,6 +49,7 @@ impl Auth<'_> {
         }
         let request = RequestPlanBuilder::post(QR_LOGIN)
             .payload(json!({ "key": key, "type": 1 }))
+            .uncacheable()
             .build();
         self.client.execute(request).await?.decode()
     }

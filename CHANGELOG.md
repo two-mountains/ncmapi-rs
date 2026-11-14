@@ -2,6 +2,15 @@
 
 All notable changes to this project are documented here.
 
+## 1.2.1
+
+### Fixed
+
+- QR polling, FM batches, likes, trashes, liked-id reads and QR key creation are
+  now exempt from the short-lived response cache. Polling used to replay the
+  first `801 等待扫码` for the whole cache TTL, so confirmation (`803`) was never
+  observed, and repeated like/trash calls returned stale results.
+
 ## 1.2.0
 
 ### Added

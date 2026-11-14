@@ -18,6 +18,9 @@ pub(crate) struct RequestPlan {
     cookies: BTreeMap<String, String>,
     encryption: Crypto,
     api_path: Option<String>,
+    /// Read-only requests may be served from the short-lived response cache.
+    /// Mutations, polling endpoints and non-idempotent reads must not be.
+    cacheable: bool,
 }
 
 pub(crate) struct RequestParts {
@@ -39,6 +42,7 @@ impl RequestPlanBuilder {
             cookies: BTreeMap::new(),
             encryption: Crypto::Weapi,
             api_path: None,
+            cacheable: true,
         })
     }
 
@@ -62,6 +66,15 @@ impl RequestPlanBuilder {
         self
     }
 
+    /// Opts the plan out of the response cache.
+    ///
+    /// Use for anything that changes server state or whose answer is expected
+    /// to change between identical calls (QR polling, FM batches, likes).
+    pub(crate) fn uncacheable(mut self) -> Self {
+        self.0.cacheable = false;
+        self
+    }
+
     pub(crate) fn build(self) -> RequestPlan {
         self.0
     }
@@ -71,6 +84,10 @@ impl RequestPlan {
     pub(crate) fn id(&self) -> TResult<String> {
         let serialized = serde_json::to_vec(self)?;
         Ok(hex::encode(hash(MessageDigest::md5(), &serialized)?))
+    }
+
+    pub(crate) const fn cacheable(&self) -> bool {
+        self.cacheable
     }
 
     pub(crate) fn into_parts(self) -> RequestParts {
@@ -90,6 +107,17 @@ mod tests {
 
     use super::RequestPlanBuilder;
     use crate::crypto::Crypto;
+
+    #[test]
+    fn plans_are_cacheable_by_default_and_can_opt_out() {
+        let cached = RequestPlanBuilder::post("https://example.test/a").build();
+        assert!(cached.cacheable());
+
+        let uncached = RequestPlanBuilder::post("https://example.test/a")
+            .uncacheable()
+            .build();
+        assert!(!uncached.cacheable());
+    }
 
     #[test]
     fn request_identity_is_stable_for_equal_plans() {

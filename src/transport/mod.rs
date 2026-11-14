@@ -126,7 +126,9 @@ impl HttpTransportBuilder {
 impl HttpTransport {
     async fn execute_request(&self, request: RequestPlan) -> TResult<Response> {
         let id = request.id()?;
+        let cacheable = request.cacheable();
         if self.config.cache
+            && cacheable
             && let Some(response) = self.store.get(&id)
         {
             return Ok(response);
@@ -134,10 +136,15 @@ impl HttpTransport {
 
         let request = self.to_http_request(request)?;
         let response = self.client.execute(request).await.map_err(Error::Http)?;
-        self.on_response(id, response).await
+        self.on_response(id, response, cacheable).await
     }
 
-    async fn on_response(&self, id: String, response: HttpResponse) -> TResult<Response> {
+    async fn on_response(
+        &self,
+        id: String,
+        response: HttpResponse,
+        cacheable: bool,
+    ) -> TResult<Response> {
         let mut headers = response.headers().get_all(SET_COOKIE).iter().peekable();
         if headers.peek().is_some() {
             self.jar.set_cookies(&mut headers, response.url());
@@ -153,7 +160,7 @@ impl HttpTransport {
         }
 
         let response = Response::new(response.bytes().await.map_err(Error::Http)?.to_vec());
-        if self.config.cache {
+        if self.config.cache && cacheable {
             self.store.insert(id, response.clone());
         }
         Ok(response)
@@ -403,7 +410,7 @@ const DEFAULT_USER_AGENT: &str = "ncmapi-rs/1.0";
 
 #[cfg(test)]
 mod tests {
-    use std::path::Path;
+    use std::{path::Path, time::Duration};
 
     use serde::Deserialize;
     use serde_json::json;
@@ -429,6 +436,61 @@ mod tests {
             adapt_url("https://example.test/api/search", Crypto::Eapi),
             "https://example.test/eapi/search"
         );
+    }
+
+    #[tokio::test]
+    async fn uncacheable_plans_always_reach_the_server() {
+        let server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .and(path("/weapi/no-cache"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(json!({"code": 200})))
+            .expect(2)
+            .mount(&server)
+            .await;
+
+        let transport = HttpTransportBuilder::new(Path::new("/unused/ncmapi-cookie"))
+            .unwrap()
+            .cache(true)
+            .cache_ttl(Duration::from_secs(60))
+            .persist_cookies(false)
+            .build()
+            .unwrap();
+
+        for _ in 0..2 {
+            let request = RequestPlanBuilder::post(format!("{}/api/no-cache", server.uri()))
+                .payload(json!({"poll": true}))
+                .uncacheable()
+                .build();
+            transport.execute_request(request).await.unwrap();
+        }
+        server.verify().await;
+    }
+
+    #[tokio::test]
+    async fn cacheable_plans_hit_the_server_once() {
+        let server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .and(path("/weapi/cached"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(json!({"code": 200})))
+            .expect(1)
+            .mount(&server)
+            .await;
+
+        let transport = HttpTransportBuilder::new(Path::new("/unused/ncmapi-cookie"))
+            .unwrap()
+            .cache(true)
+            .cache_ttl(Duration::from_secs(60))
+            .persist_cookies(false)
+            .build()
+            .unwrap();
+
+        for _ in 0..2 {
+            let request = RequestPlanBuilder::post(format!("{}/api/cached", server.uri()))
+                .payload(json!({"read": true}))
+                .build();
+            transport.execute_request(request).await.unwrap();
+        }
+        server.verify().await;
     }
 
     #[tokio::test]

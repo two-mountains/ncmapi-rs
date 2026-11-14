@@ -27,7 +27,7 @@ impl Radio<'_> {
     /// Fetches the next personal-FM batch (requires a session).
     pub async fn fm_batch(&self) -> Result<ApiResponse<FmBody>> {
         self.client
-            .execute(RequestPlanBuilder::post(PERSONAL_FM).build())
+            .execute(RequestPlanBuilder::post(PERSONAL_FM).uncacheable().build())
             .await?
             .decode()
     }
@@ -43,6 +43,7 @@ impl Radio<'_> {
             .execute(
                 RequestPlanBuilder::post(url)
                     .payload(json!({ "songId": id.0 }))
+                    .uncacheable()
                     .build(),
             )
             .await?
@@ -63,6 +64,7 @@ impl Radio<'_> {
                         "like": liked,
                         "trackId": id.0,
                     }))
+                    .uncacheable()
                     .build(),
             )
             .await?
@@ -75,6 +77,7 @@ impl Radio<'_> {
             .execute(
                 RequestPlanBuilder::post(LIKELIST)
                     .payload(json!({ "uid": user.0 }))
+                    .uncacheable()
                     .build(),
             )
             .await?
