@@ -2,6 +2,19 @@
 
 All notable changes to this project are documented here.
 
+## 1.2.0
+
+### Added
+
+- `discovery().daily()` — daily recommended songs with reasons (session).
+- `discovery().toplists()` — official chart list (no session).
+- `radio().fm_batch()` — personal FM batch (session).
+- `radio().trash(id)` — remove a track from personal FM.
+- `radio().set_like(id, liked)` — idempotent like/unlike.
+- `radio().liked_ids(user)` — liked track ids.
+- Models: `DailyBody`, `DailyData`, `RecommendReason`, `FmBody`, `LikeListBody`,
+  `ToplistBody`, `ToplistEntry`, `EmptyBody`.
+
 ## 1.1.2
 
 ### Fixed

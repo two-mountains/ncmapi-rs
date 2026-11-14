@@ -59,6 +59,13 @@ let detail = api.library().playlist_detail(24381616).await?;
 let tracks = api.library().playlist_tracks(24381616, 500, 0).await?;
 let lyrics = api.library().lyrics(track_id).await?;
 
+let daily = api.discovery().daily().await?;       // session
+let charts = api.discovery().toplists().await?;   // no session
+let fm = api.radio().fm_batch().await?;           // session
+api.radio().set_like(song_id, true).await?;
+api.radio().trash(song_id).await?;
+let liked = api.radio().liked_ids(user_id).await?;
+
 let qr = api.auth().qr_start().await?;
 println!("{}", qr.body.login_url());          // encode this as a QR code
 let status = api.auth().qr_poll(&qr.body.unikey).await?; // code 803 = confirmed

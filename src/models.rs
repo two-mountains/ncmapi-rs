@@ -230,6 +230,73 @@ impl LyricsBody {
     }
 }
 
+/// One entry of the daily recommendation reasons.
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct RecommendReason {
+    #[serde(default)]
+    pub song_id: u64,
+    #[serde(default)]
+    pub reason: Option<String>,
+}
+
+/// The payload of daily recommendations.
+#[derive(Clone, Debug, Default, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct DailyData {
+    #[serde(default)]
+    pub daily_songs: Vec<Track>,
+    #[serde(default)]
+    pub recommend_reasons: Vec<RecommendReason>,
+}
+
+#[derive(Clone, Debug, Default, Deserialize, PartialEq)]
+pub struct DailyBody {
+    #[serde(default)]
+    pub data: DailyData,
+}
+
+/// The payload of a personal-FM batch.
+#[derive(Clone, Debug, Default, Deserialize, PartialEq)]
+pub struct FmBody {
+    #[serde(default)]
+    pub data: Vec<Track>,
+}
+
+/// The payload returned by the liked-ids endpoint.
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq)]
+pub struct LikeListBody {
+    #[serde(default)]
+    pub ids: Vec<u64>,
+}
+
+/// A chart entry from the toplist endpoint.
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct ToplistEntry {
+    #[serde(default)]
+    pub id: u64,
+    #[serde(default)]
+    pub name: String,
+    #[serde(default)]
+    pub cover_img_url: String,
+    #[serde(default)]
+    pub track_count: u64,
+    #[serde(default)]
+    pub update_frequency: String,
+}
+
+/// The payload of the toplist endpoint.
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq)]
+pub struct ToplistBody {
+    #[serde(default)]
+    pub list: Vec<ToplistEntry>,
+}
+
+/// Placeholder body for endpoints that only return a status code.
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq)]
+pub struct EmptyBody {}
+
 /// The payload that starts a QR login flow.
 #[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq)]
 pub struct QrKeyBody {
