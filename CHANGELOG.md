@@ -2,6 +2,14 @@
 
 All notable changes to this project are documented here.
 
+## 1.4.0
+
+### Added
+
+- `library().cloud(limit, offset)` — the account's music cloud (uploaded
+  tracks), with `CloudBody`/`CloudTrack` models and matched `simpleSong`
+  metadata.
+
 ## 1.3.1
 
 ### Fixed

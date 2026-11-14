@@ -316,6 +316,36 @@ pub struct ToplistBody {
 #[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq)]
 pub struct EmptyBody {}
 
+/// One entry of the account's music cloud.
+#[derive(Clone, Debug, Default, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct CloudTrack {
+    #[serde(default, deserialize_with = "null_default")]
+    pub song_id: u64,
+    #[serde(default, deserialize_with = "null_default")]
+    pub song_name: String,
+    #[serde(default, deserialize_with = "null_default")]
+    pub artist: String,
+    #[serde(default, deserialize_with = "null_default")]
+    pub album: String,
+    #[serde(default, deserialize_with = "null_default")]
+    pub file_name: String,
+    /// Full metadata for matched cloud tracks.
+    #[serde(default, deserialize_with = "null_default")]
+    pub simple_song: Option<Track>,
+}
+
+/// The payload of the music-cloud listing.
+#[derive(Clone, Debug, Default, Deserialize, PartialEq)]
+pub struct CloudBody {
+    #[serde(default, deserialize_with = "null_default")]
+    pub count: u64,
+    #[serde(default, deserialize_with = "null_default")]
+    pub size: u64,
+    #[serde(default, deserialize_with = "null_default")]
+    pub data: Vec<CloudTrack>,
+}
+
 /// The payload that starts a QR login flow.
 #[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq)]
 pub struct QrKeyBody {

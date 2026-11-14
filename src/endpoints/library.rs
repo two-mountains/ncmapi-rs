@@ -1,10 +1,12 @@
 use serde_json::json;
 
 use crate::{
-    ApiResponse, LyricsBody, NcmClient, PlaylistDetailBody, Result, StreamUrlsBody,
+    ApiResponse, CloudBody, LyricsBody, NcmClient, PlaylistDetailBody, Result, StreamUrlsBody,
     TrackDetailsBody, TrackId,
     crypto::Crypto,
-    transport::{LYRIC, PLAYLIST_DETAIL, RequestPlanBuilder, STREAM_URLS, TRACK_DETAILS},
+    transport::{
+        LYRIC, PLAYLIST_DETAIL, RequestPlanBuilder, STREAM_URLS, TRACK_DETAILS, USER_CLOUD,
+    },
 };
 
 /// Music-library endpoints exposed by [`NcmClient::library`].
@@ -110,6 +112,24 @@ impl<'client> Library<'client> {
             code: 200,
             body: TrackDetailsBody { songs },
         })
+    }
+
+    /// Fetches a page of the account's music cloud.
+    ///
+    /// # Errors
+    ///
+    /// Rejects a zero limit before any request is made.
+    pub async fn cloud(&self, limit: u32, offset: u32) -> Result<ApiResponse<CloudBody>> {
+        if limit == 0 {
+            return Err(crate::Error::InvalidInput {
+                field: "cloud limit",
+                reason: "must be greater than zero",
+            });
+        }
+        let request = RequestPlanBuilder::post(USER_CLOUD)
+            .payload(json!({ "limit": limit, "offset": offset }))
+            .build();
+        self.client.execute(request).await?.decode()
     }
 
     /// Fetches the LRC lyric document for a track.
@@ -235,6 +255,24 @@ mod tests {
         assert_eq!(playlist.tracks[0].artists[0].name, "");
         assert_eq!(playlist.tracks[0].album.name, "");
         assert_eq!(playlist.tracks[0].duration, 0);
+    }
+
+    #[tokio::test]
+    async fn cloud_decodes_uploads() {
+        let body = r#"{"code":200,"count":2,"size":100,"data":[
+            {"songId":1,"songName":"a","artist":"X","album":"Y",
+             "simpleSong":{"id":1,"name":"a"}}]}"#;
+        let response = client("https://music.163.com/api/v1/cloud/get", body)
+            .library()
+            .cloud(30, 0)
+            .await
+            .unwrap();
+        assert_eq!(response.body.count, 2);
+        assert_eq!(response.body.data[0].song_name, "a");
+        assert_eq!(
+            response.body.data[0].simple_song.as_ref().unwrap().name,
+            "a"
+        );
     }
 
     #[tokio::test]

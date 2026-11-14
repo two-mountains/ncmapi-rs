@@ -35,8 +35,8 @@ pub(crate) use request::{RequestPlan, RequestPlanBuilder};
 pub(crate) use response::Response;
 pub(crate) use routes::{
     ACCOUNT, CLOUD_SEARCH, LIKE, LIKELIST, LYRIC, PERSONAL_FM, PLAYLIST_DETAIL, QR_LOGIN,
-    QR_UNIKEY, RECOMMEND_SONGS, STREAM_URLS, TOPLIST, TRACK_DETAILS, USER_PLAYLISTS, fm_trash,
-    user_details,
+    QR_UNIKEY, RECOMMEND_SONGS, STREAM_URLS, TOPLIST, TRACK_DETAILS, USER_CLOUD, USER_PLAYLISTS,
+    fm_trash, user_details,
 };
 
 /// Side-effect boundary used by endpoint use-cases.
