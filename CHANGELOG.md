@@ -2,6 +2,14 @@
 
 All notable changes to this project are documented here.
 
+## 1.3.1
+
+### Fixed
+
+- Provider models accept `null` for strings, numbers, vectors and nested
+  objects. NetEase returns `null` names on locally-uploaded tracks, which made
+  playlist detail fail to deserialize (`invalid type: null, expected a string`).
+
 ## 1.3.0
 
 ### Changed

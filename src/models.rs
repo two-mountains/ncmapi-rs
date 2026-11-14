@@ -1,6 +1,17 @@
 //! Stable domain types returned by the supported SDK services.
 
-use serde::Deserialize;
+use serde::{Deserialize, Deserializer};
+
+/// NetEase frequently sends `null` where a field is documented as a string or
+/// number (for example `ar[0].name` on locally-uploaded tracks). Treat null the
+/// same as a missing field instead of failing the whole response.
+fn null_default<'de, D, T>(deserializer: D) -> std::result::Result<T, D::Error>
+where
+    D: Deserializer<'de>,
+    T: Deserialize<'de> + Default,
+{
+    Ok(Option::<T>::deserialize(deserializer)?.unwrap_or_default())
+}
 
 /// A response returned by the NetEase API.
 ///
@@ -35,8 +46,9 @@ pub struct UserId(pub u64);
 #[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct Artist {
+    #[serde(default, deserialize_with = "null_default")]
     pub id: u64,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_default")]
     pub name: String,
 }
 
@@ -44,10 +56,11 @@ pub struct Artist {
 #[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct Album {
+    #[serde(default, deserialize_with = "null_default")]
     pub id: u64,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_default")]
     pub name: String,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_default")]
     pub pic_url: String,
 }
 
@@ -55,21 +68,22 @@ pub struct Album {
 #[derive(Clone, Debug, Default, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct Track {
+    #[serde(default, deserialize_with = "null_default")]
     pub id: u64,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_default")]
     pub name: String,
-    #[serde(default, alias = "ar")]
+    #[serde(default, alias = "ar", deserialize_with = "null_default")]
     pub artists: Vec<Artist>,
-    #[serde(default, alias = "al")]
+    #[serde(default, alias = "al", deserialize_with = "null_default")]
     pub album: Album,
-    #[serde(default, alias = "dt")]
+    #[serde(default, alias = "dt", deserialize_with = "null_default")]
     pub duration: u32,
 }
 
 /// The payload of a song search response.
 #[derive(Clone, Debug, Default, Deserialize, PartialEq)]
 pub struct SearchBody {
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_default")]
     pub result: SearchResults,
 }
 
@@ -77,36 +91,37 @@ pub struct SearchBody {
 #[derive(Clone, Debug, Default, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct SearchResults {
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_default")]
     pub songs: Vec<Track>,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_default")]
     pub playlists: Vec<Playlist>,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_default")]
     pub artists: Vec<Artist>,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_default")]
     pub has_more: bool,
 }
 
 /// The payload of a track-details response.
 #[derive(Clone, Debug, Default, Deserialize, PartialEq)]
 pub struct TrackDetailsBody {
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_default")]
     pub songs: Vec<Track>,
 }
 
 /// A resolved playable stream.
 #[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq)]
 pub struct StreamUrl {
+    #[serde(default, deserialize_with = "null_default")]
     pub id: u64,
     pub url: Option<String>,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_default")]
     pub br: u32,
 }
 
 /// The payload of a stream URL response.
 #[derive(Clone, Debug, Default, Deserialize, PartialEq)]
 pub struct StreamUrlsBody {
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_default")]
     pub data: Vec<StreamUrl>,
 }
 
@@ -114,8 +129,9 @@ pub struct StreamUrlsBody {
 #[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct UserProfile {
+    #[serde(default, deserialize_with = "null_default")]
     pub user_id: u64,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_default")]
     pub nickname: String,
 }
 
@@ -135,9 +151,9 @@ pub struct UserDetailsBody {
 #[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct Creator {
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_default")]
     pub user_id: u64,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_default")]
     pub nickname: String,
 }
 
@@ -145,22 +161,24 @@ pub struct Creator {
 #[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct Playlist {
+    #[serde(default, deserialize_with = "null_default")]
     pub id: u64,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_default")]
     pub name: String,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_default")]
     pub description: Option<String>,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_default")]
     pub track_count: u64,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_default")]
     pub cover_img_url: String,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_default")]
     pub creator: Option<Creator>,
 }
 
 /// A lightweight track reference used by playlist detail payloads.
 #[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq)]
 pub struct TrackRef {
+    #[serde(default, deserialize_with = "null_default")]
     pub id: u64,
 }
 
@@ -168,29 +186,30 @@ pub struct TrackRef {
 #[derive(Clone, Debug, Default, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct PlaylistDetail {
+    #[serde(default, deserialize_with = "null_default")]
     pub id: u64,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_default")]
     pub name: String,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_default")]
     pub description: Option<String>,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_default")]
     pub track_count: u64,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_default")]
     pub cover_img_url: String,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_default")]
     pub creator: Option<Creator>,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_default")]
     pub tracks: Vec<Track>,
     /// Every track id in the playlist, in order. `tracks` only carries the
     /// first page, so this is the authoritative listing.
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_default")]
     pub track_ids: Vec<TrackRef>,
 }
 
 /// The payload of a playlist-detail response.
 #[derive(Clone, Debug, Default, Deserialize, PartialEq)]
 pub struct PlaylistDetailBody {
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_default")]
     pub playlist: Option<PlaylistDetail>,
 }
 
@@ -198,18 +217,18 @@ pub struct PlaylistDetailBody {
 /// translation and romanisation in sibling fields.
 #[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq)]
 pub struct Lyric {
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_default")]
     pub lyric: String,
 }
 
 /// The payload of a lyric response.
 #[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq)]
 pub struct LyricsBody {
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_default")]
     pub lrc: Option<Lyric>,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_default")]
     pub tlyric: Option<Lyric>,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_default")]
     pub romalrc: Option<Lyric>,
 }
 
@@ -234,9 +253,9 @@ impl LyricsBody {
 #[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct RecommendReason {
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_default")]
     pub song_id: u64,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_default")]
     pub reason: Option<String>,
 }
 
@@ -244,29 +263,29 @@ pub struct RecommendReason {
 #[derive(Clone, Debug, Default, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct DailyData {
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_default")]
     pub daily_songs: Vec<Track>,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_default")]
     pub recommend_reasons: Vec<RecommendReason>,
 }
 
 #[derive(Clone, Debug, Default, Deserialize, PartialEq)]
 pub struct DailyBody {
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_default")]
     pub data: DailyData,
 }
 
 /// The payload of a personal-FM batch.
 #[derive(Clone, Debug, Default, Deserialize, PartialEq)]
 pub struct FmBody {
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_default")]
     pub data: Vec<Track>,
 }
 
 /// The payload returned by the liked-ids endpoint.
 #[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq)]
 pub struct LikeListBody {
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_default")]
     pub ids: Vec<u64>,
 }
 
@@ -274,22 +293,22 @@ pub struct LikeListBody {
 #[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct ToplistEntry {
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_default")]
     pub id: u64,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_default")]
     pub name: String,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_default")]
     pub cover_img_url: String,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_default")]
     pub track_count: u64,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_default")]
     pub update_frequency: String,
 }
 
 /// The payload of the toplist endpoint.
 #[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq)]
 pub struct ToplistBody {
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_default")]
     pub list: Vec<ToplistEntry>,
 }
 
@@ -300,7 +319,7 @@ pub struct EmptyBody {}
 /// The payload that starts a QR login flow.
 #[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq)]
 pub struct QrKeyBody {
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_default")]
     pub unikey: String,
 }
 
@@ -319,17 +338,17 @@ impl QrKeyBody {
 #[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct QrLoginBody {
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_default")]
     pub message: Option<String>,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_default")]
     pub nickname: Option<String>,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_default")]
     pub avatar_url: Option<String>,
 }
 
 /// The payload returned by a user's playlist query.
 #[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq)]
 pub struct UserPlaylistsBody {
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_default")]
     pub playlist: Vec<Playlist>,
 }

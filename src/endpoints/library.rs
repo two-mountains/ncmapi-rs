@@ -221,6 +221,23 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn tolerates_null_names_in_track_metadata() {
+        let body = r#"{"code":200,"playlist":{"id":5,"name":"Liked",
+            "tracks":[{"id":1,"name":null,"ar":[{"id":2,"name":null}],
+            "al":{"id":3,"name":null},"dt":null}],"trackIds":[{"id":1}]}}"#;
+        let response = client("https://music.163.com/api/v6/playlist/detail", body)
+            .library()
+            .playlist_detail(5)
+            .await
+            .unwrap();
+        let playlist = response.body.playlist.unwrap();
+        assert_eq!(playlist.tracks[0].name, "");
+        assert_eq!(playlist.tracks[0].artists[0].name, "");
+        assert_eq!(playlist.tracks[0].album.name, "");
+        assert_eq!(playlist.tracks[0].duration, 0);
+    }
+
+    #[tokio::test]
     async fn playlist_track_limit_must_be_positive() {
         let client = client("https://music.163.com/api/playlist/track/all", "{}");
         assert!(client.library().playlist_tracks(1, 0, 0).await.is_err());
