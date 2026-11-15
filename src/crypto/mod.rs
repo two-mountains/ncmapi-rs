@@ -26,6 +26,7 @@ impl CryptoError {
 pub enum Crypto {
     Weapi,
     Eapi,
+    #[allow(unused)]
     Linuxapi,
     /// Unencrypted GET (public comments and similar read-only endpoints).
     Plain,
