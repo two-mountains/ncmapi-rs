@@ -2,6 +2,14 @@
 
 All notable changes to this project are documented here.
 
+## 1.7.0
+
+### Added
+
+- `Library::comments(track_id, limit, offset)` and `CommentsBody` /
+  `Comment` / `CommentUser` / `RepliedComment` models. Uses a new plain
+  read-only GET transport path; public comments need no encryption.
+
 ## 1.6.0
 
 ### Changed

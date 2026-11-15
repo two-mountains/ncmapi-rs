@@ -412,3 +412,54 @@ pub struct UserPlaylistsBody {
     #[serde(default, deserialize_with = "null_default")]
     pub playlist: Vec<Playlist>,
 }
+
+/// A public track comment and its author.
+#[derive(Clone, Debug, Default, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct Comment {
+    #[serde(default)]
+    pub comment_id: u64,
+    #[serde(default)]
+    pub content: String,
+    #[serde(default)]
+    pub time: u64,
+    #[serde(default)]
+    pub liked_count: u64,
+    #[serde(default)]
+    pub user: Option<CommentUser>,
+    #[serde(default)]
+    pub be_replied: Vec<RepliedComment>,
+}
+
+#[derive(Clone, Debug, Default, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct CommentUser {
+    #[serde(default)]
+    pub user_id: u64,
+    #[serde(default)]
+    pub nickname: String,
+    #[serde(default)]
+    pub avatar_url: String,
+}
+
+#[derive(Clone, Debug, Default, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct RepliedComment {
+    #[serde(default)]
+    pub content: String,
+    #[serde(default)]
+    pub user: Option<CommentUser>,
+}
+
+#[derive(Clone, Debug, Default, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct CommentsBody {
+    #[serde(default)]
+    pub total: u64,
+    #[serde(default)]
+    pub more: bool,
+    #[serde(default)]
+    pub hot_comments: Vec<Comment>,
+    #[serde(default)]
+    pub comments: Vec<Comment>,
+}

@@ -31,10 +31,10 @@ use crate::{
     domain::request_id,
 };
 
-pub(crate) use request::{RequestPlan, RequestPlanBuilder};
+pub(crate) use request::{RequestMethod, RequestPlan, RequestPlanBuilder};
 pub(crate) use response::Response;
 pub(crate) use routes::{
-    ACCOUNT, CLOUD_SEARCH, LIKE, LIKELIST, LYRIC, PERSONAL_FM, PLAYLIST_DETAIL, QR_LOGIN,
+    ACCOUNT, CLOUD_SEARCH, COMMENTS, LIKE, LIKELIST, LYRIC, PERSONAL_FM, PLAYLIST_DETAIL, QR_LOGIN,
     QR_UNIKEY, RECOMMEND_SONGS, STREAM_URLS, TOPLIST, TRACK_DETAILS, USER_CLOUD, USER_PLAYLISTS,
     fm_trash, user_details,
 };
@@ -239,7 +239,7 @@ impl HttpTransport {
                     })?
                     .insert("header".to_owned(), json!(cookies));
             }
-            Crypto::Linuxapi => {
+            Crypto::Linuxapi | Crypto::Plain => {
                 let cookies = self
                     .jar
                     .cookies(&self.config.base_url)
@@ -260,12 +260,12 @@ impl HttpTransport {
         }
 
         let form = match plan.encryption {
-            Crypto::Weapi => weapi(payload.to_string().as_bytes())?.into_vec(),
+            Crypto::Weapi => Some(weapi(payload.to_string().as_bytes())?.into_vec()),
             Crypto::Eapi => {
                 let api_path = plan.api_path.ok_or_else(|| {
                     Error::Protocol("eapi request requires an API path".to_owned())
                 })?;
-                eapi(api_path.as_bytes(), payload.to_string().as_bytes())?.into_vec()
+                Some(eapi(api_path.as_bytes(), payload.to_string().as_bytes())?.into_vec())
             }
             Crypto::Linuxapi => {
                 let data = json!({
@@ -273,21 +273,29 @@ impl HttpTransport {
                     "url": adapt_url(&plan.url, plan.encryption),
                     "params": payload,
                 });
-                linuxapi(data.to_string().as_bytes())?.into_vec()
+                Some(linuxapi(data.to_string().as_bytes())?.into_vec())
             }
+            Crypto::Plain => None,
         };
 
-        self.client
-            .request(
-                reqwest::Method::POST,
-                adapt_url(&plan.url, plan.encryption)
-                    .parse::<Url>()
-                    .map_err(|error| Error::InvalidUrl(error.to_string()))?,
-            )
-            .headers(headers)
-            .form(&form)
-            .build()
-            .map_err(Error::Http)
+        let method = match plan.method {
+            RequestMethod::Get => reqwest::Method::GET,
+            RequestMethod::Post => reqwest::Method::POST,
+        };
+        let request = self.client.request(
+            method,
+            adapt_url(&plan.url, plan.encryption)
+                .parse::<Url>()
+                .map_err(|error| Error::InvalidUrl(error.to_string()))?,
+        );
+        match form {
+            Some(form) => request
+                .headers(headers)
+                .form(&form)
+                .build()
+                .map_err(Error::Http),
+            None => request.headers(headers).build().map_err(Error::Http),
+        }
     }
 
     fn cookie(&self, name: &str, url: &Url) -> TResult<Option<Cookie<'static>>> {
@@ -412,6 +420,7 @@ fn adapt_url(url: &str, crypto: Crypto) -> String {
         Crypto::Weapi => url.replacen("/api/", "/weapi/", 1),
         Crypto::Eapi => url.replacen("/api/", "/eapi/", 1),
         Crypto::Linuxapi => "https://music.163.com/api/linux/forward".to_owned(),
+        Crypto::Plain => url.to_owned(),
     }
 }
 

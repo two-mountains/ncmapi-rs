@@ -15,6 +15,7 @@ pub(crate) const LIKE: &str = "https://music.163.com/api/radio/like";
 pub(crate) const LIKELIST: &str = "https://music.163.com/weapi/song/like/get";
 pub(crate) const TOPLIST: &str = "https://music.163.com/api/toplist";
 pub(crate) const USER_CLOUD: &str = "https://music.163.com/api/v1/cloud/get";
+pub(crate) const COMMENTS: &str = "https://music.163.com/api/v1/resource/comments/R_SO_4_";
 
 pub(crate) fn fm_trash(song_id: u64, time: u64) -> String {
     format!("https://music.163.com/weapi/radio/trash/add?alg=RT&songId={song_id}&time={time}")

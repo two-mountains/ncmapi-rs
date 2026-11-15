@@ -11,9 +11,16 @@ use serde_json::{Value, json};
 
 use crate::{TResult, crypto::Crypto};
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+pub(crate) enum RequestMethod {
+    Get,
+    Post,
+}
+
 #[derive(Debug, Serialize)]
 pub(crate) struct RequestPlan {
     url: String,
+    method: RequestMethod,
     payload: Value,
     cookies: BTreeMap<String, String>,
     encryption: Crypto,
@@ -25,6 +32,7 @@ pub(crate) struct RequestPlan {
 
 pub(crate) struct RequestParts {
     pub(crate) url: String,
+    pub(crate) method: RequestMethod,
     pub(crate) payload: Value,
     pub(crate) cookies: BTreeMap<String, String>,
     pub(crate) encryption: Crypto,
@@ -38,9 +46,22 @@ impl RequestPlanBuilder {
     pub(crate) fn post(url: impl Into<String>) -> Self {
         Self(RequestPlan {
             url: url.into(),
+            method: RequestMethod::Post,
             payload: json!({}),
             cookies: BTreeMap::new(),
             encryption: Crypto::Weapi,
+            api_path: None,
+            cacheable: true,
+        })
+    }
+
+    pub(crate) fn get(url: impl Into<String>) -> Self {
+        Self(RequestPlan {
+            url: url.into(),
+            method: RequestMethod::Get,
+            payload: json!({}),
+            cookies: BTreeMap::new(),
+            encryption: Crypto::Plain,
             api_path: None,
             cacheable: true,
         })
@@ -93,6 +114,7 @@ impl RequestPlan {
     pub(crate) fn into_parts(self) -> RequestParts {
         RequestParts {
             url: self.url,
+            method: self.method,
             payload: self.payload,
             cookies: self.cookies,
             encryption: self.encryption,

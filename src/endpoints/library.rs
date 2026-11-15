@@ -1,11 +1,12 @@
 use serde_json::json;
 
 use crate::{
-    ApiResponse, CloudBody, LyricsBody, NcmClient, PlaylistDetailBody, Result, StreamUrlsBody,
-    TrackDetailsBody, TrackId,
+    ApiResponse, CloudBody, CommentsBody, LyricsBody, NcmClient, PlaylistDetailBody, Result,
+    StreamUrlsBody, TrackDetailsBody, TrackId,
     crypto::Crypto,
     transport::{
-        LYRIC, PLAYLIST_DETAIL, RequestPlanBuilder, STREAM_URLS, TRACK_DETAILS, USER_CLOUD,
+        COMMENTS, LYRIC, PLAYLIST_DETAIL, RequestPlanBuilder, STREAM_URLS, TRACK_DETAILS,
+        USER_CLOUD,
     },
 };
 
@@ -143,6 +144,30 @@ impl<'client> Library<'client> {
         self.client.execute(request).await?.decode()
     }
 
+    /// Fetches public comments for a track.
+    ///
+    /// `limit` is capped by the provider; callers page with `offset`.
+    ///
+    /// # Errors
+    ///
+    /// Rejects a zero limit before any request is made.
+    pub async fn comments(
+        &self,
+        id: u64,
+        limit: u16,
+        offset: u32,
+    ) -> Result<ApiResponse<CommentsBody>> {
+        if limit == 0 {
+            return Err(crate::Error::InvalidInput {
+                field: "comment limit",
+                reason: "must be greater than zero",
+            });
+        }
+        let url = format!("{COMMENTS}{id}?limit={limit}&offset={offset}");
+        let request = RequestPlanBuilder::get(url).build();
+        self.client.execute(request).await?.decode()
+    }
+
     /// Resolves playable URLs using the documented maximum bitrate.
     pub async fn stream_urls(&self, ids: &[TrackId]) -> Result<ApiResponse<StreamUrlsBody>> {
         let request = RequestPlanBuilder::post(STREAM_URLS)
@@ -182,6 +207,51 @@ mod tests {
 
     fn client(url: &'static str, body: &'static str) -> NcmClient {
         NcmClient::with_transport(Arc::new(StubTransport { url, body }))
+    }
+
+    #[tokio::test]
+    async fn comments_decode_hot_and_regular_entries() {
+        let body = r#"{"code":200,"total":2,"more":false,
+            "hotComments":[{"commentId":1,"content":"first","time":1,"likedCount":9,
+                "user":{"userId":7,"nickname":"ben","avatarUrl":"https://img/7"},
+                "beReplied":[{"content":"parent","user":{"userId":8,"nickname":"aka"}}]}],
+            "comments":[{"commentId":2,"content":"second","user":null}]}"#;
+        let url = "https://music.163.com/api/v1/resource/comments/R_SO_4_186016?limit=20&offset=0";
+        let response = client(url, body)
+            .library()
+            .comments(186_016, 20, 0)
+            .await
+            .unwrap();
+        assert_eq!(response.body.total, 2);
+        assert!(!response.body.more);
+        assert_eq!(response.body.hot_comments[0].liked_count, 9);
+        assert_eq!(
+            response.body.hot_comments[0]
+                .user
+                .as_ref()
+                .unwrap()
+                .nickname,
+            "ben"
+        );
+        assert_eq!(
+            response.body.hot_comments[0].be_replied[0]
+                .user
+                .as_ref()
+                .unwrap()
+                .nickname,
+            "aka"
+        );
+        assert!(response.body.comments[0].user.is_none());
+    }
+
+    #[tokio::test]
+    async fn comments_reject_a_zero_limit() {
+        let error = client("https://example.test", "{}")
+            .library()
+            .comments(1, 0, 0)
+            .await
+            .unwrap_err();
+        assert!(matches!(error, crate::Error::InvalidInput { .. }));
     }
 
     #[tokio::test]

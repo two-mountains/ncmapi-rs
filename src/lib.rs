@@ -12,11 +12,12 @@ pub use domain::Page;
 pub use endpoints::{Auth, Discovery, Library, Profile, Radio, SearchKind, SearchQuery};
 pub use error::{Error, Result};
 pub use models::{
-    AccountBody, Album, ApiResponse, Artist, CloudBody, CloudTrack, Creator, DailyBody, DailyData,
-    EmptyBody, FmBody, LikeListBody, Lyric, LyricsBody, Playlist, PlaylistDetail,
-    PlaylistDetailBody, QrKeyBody, QrLoginBody, RecommendReason, SearchBody, SearchResults,
-    StreamUrl, StreamUrlsBody, ToplistBody, ToplistEntry, Track, TrackDetailsBody, TrackId,
-    TrackRef, UserDetailsBody, UserId, UserPlaylistsBody, UserProfile,
+    AccountBody, Album, ApiResponse, Artist, CloudBody, CloudTrack, Comment, CommentUser,
+    CommentsBody, Creator, DailyBody, DailyData, EmptyBody, FmBody, LikeListBody, Lyric,
+    LyricsBody, Playlist, PlaylistDetail, PlaylistDetailBody, QrKeyBody, QrLoginBody,
+    RecommendReason, RepliedComment, SearchBody, SearchResults, StreamUrl, StreamUrlsBody,
+    ToplistBody, ToplistEntry, Track, TrackDetailsBody, TrackId, TrackRef, UserDetailsBody, UserId,
+    UserPlaylistsBody, UserProfile,
 };
 pub use sdk::{NcmClient, NcmClientBuilder};
 #[deprecated(note = "use NcmClient instead")]
