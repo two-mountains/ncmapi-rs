@@ -2,6 +2,16 @@
 
 All notable changes to this project are documented here.
 
+## 1.8.1
+
+### Fixed
+
+- Track comment payloads tolerate `null` where the provider omits deleted
+  content: `Comment::content`, `beReplied[*].content`, user `nickname` and
+  `avatarUrl`, plus nullable `total`, `more`, `hotComments` and `comments`.
+  Previously a single deleted reply failed the whole comments response with
+  `invalid type: null, expected a string`.
+
 ## 1.8.0
 
 ### Added

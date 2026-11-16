@@ -245,6 +245,30 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn comments_tolerate_null_fields_from_deleted_content() {
+        let body = r#"{"code":200,"total":null,"more":null,
+            "hotComments":null,
+            "comments":[{"commentId":2,"content":null,"time":null,"likedCount":null,
+                "user":{"userId":null,"nickname":null,"avatarUrl":null},
+                "beReplied":[{"content":null,"user":{"nickname":null,"avatarUrl":null}}]}]}"#;
+        let url = "https://music.163.com/api/v1/resource/comments/R_SO_4_186016?limit=20&offset=0";
+        let response = client(url, body)
+            .library()
+            .comments(186_016, 20, 0)
+            .await
+            .unwrap();
+        assert_eq!(response.body.total, 0);
+        assert!(!response.body.more);
+        assert!(response.body.hot_comments.is_empty());
+        let comment = &response.body.comments[0];
+        assert_eq!(comment.comment_id, 2);
+        assert_eq!(comment.content, "");
+        assert_eq!(comment.liked_count, 0);
+        assert_eq!(comment.user.as_ref().unwrap().nickname, "");
+        assert_eq!(comment.be_replied[0].content, "");
+    }
+
+    #[tokio::test]
     async fn comments_reject_a_zero_limit() {
         let error = client("https://example.test", "{}")
             .library()

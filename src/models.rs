@@ -417,35 +417,35 @@ pub struct UserPlaylistsBody {
 #[derive(Clone, Debug, Default, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct Comment {
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_default")]
     pub comment_id: u64,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_default")]
     pub content: String,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_default")]
     pub time: u64,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_default")]
     pub liked_count: u64,
     #[serde(default)]
     pub user: Option<CommentUser>,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_default")]
     pub be_replied: Vec<RepliedComment>,
 }
 
 #[derive(Clone, Debug, Default, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct CommentUser {
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_default")]
     pub user_id: u64,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_default")]
     pub nickname: String,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_default")]
     pub avatar_url: String,
 }
 
 #[derive(Clone, Debug, Default, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct RepliedComment {
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_default")]
     pub content: String,
     #[serde(default)]
     pub user: Option<CommentUser>,
@@ -454,12 +454,12 @@ pub struct RepliedComment {
 #[derive(Clone, Debug, Default, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct CommentsBody {
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_default")]
     pub total: u64,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_default")]
     pub more: bool,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_default")]
     pub hot_comments: Vec<Comment>,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_default")]
     pub comments: Vec<Comment>,
 }
