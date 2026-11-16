@@ -2,6 +2,26 @@
 
 All notable changes to this project are documented here.
 
+## 1.8.0
+
+### Added
+
+- `NcmClientBuilder::device_id_path`: persists one anonymous device id (52 hex
+  characters) across processes instead of generating a new device for every
+  client. This keeps repeated CLI invocations recognisable to the provider.
+- `NcmClientBuilder::user_agent`: overrides the default `ncmapi-rs/1.0` header
+  so applications can present a browser or app string.
+
+### Changed
+
+- Requests to `music.163.com` now send `Origin` and `Accept-Language` alongside
+  `Referer`, matching a normal web client more closely.
+
+### Fixed
+
+- Cookie and device-id files are created with `0600` permissions on Unix, and
+  their parent directory is created when missing.
+
 ## 1.7.0
 
 ### Added

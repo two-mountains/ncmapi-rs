@@ -7,7 +7,7 @@ mod routes;
 
 use std::{
     collections::BTreeMap,
-    fs::{File, OpenOptions},
+    fs::{self, File, OpenOptions},
     io::{ErrorKind, Read, Write},
     path::{Path, PathBuf},
     sync::Arc,
@@ -21,7 +21,10 @@ use rand::RngExt;
 use reqwest::{
     Client, Request, Response as HttpResponse, Url,
     cookie::{CookieStore, Jar},
-    header::{CONTENT_TYPE, COOKIE, HeaderMap, HeaderValue, REFERER, SET_COOKIE, USER_AGENT},
+    header::{
+        ACCEPT_LANGUAGE, CONTENT_TYPE, COOKIE, HeaderMap, HeaderValue, ORIGIN, REFERER, SET_COOKIE,
+        USER_AGENT,
+    },
 };
 use serde_json::{Value, json};
 
@@ -53,8 +56,12 @@ pub(crate) struct HttpTransport {
     client: Client,
     store: Store,
     jar: Arc<dyn CookieStore>,
-    /// Stable per-process device id used by eapi request headers.
+    /// Stable device id used by eapi request headers.
+    ///
+    /// Persisted when [`HttpTransportBuilder::device_id_path`] is set, so
+    /// separate CLI invocations keep presenting the same device.
     device_id: String,
+    user_agent: HeaderValue,
 }
 
 #[derive(Debug)]
@@ -75,8 +82,22 @@ impl HttpTransportBuilder {
                 base_url,
                 preserve_cookies: true,
                 cookie_path: cookie_path.to_path_buf(),
+                device_id_path: None,
+                user_agent: DEFAULT_USER_AGENT.to_owned(),
             },
         })
+    }
+
+    /// Persists the anonymous device id so it survives across processes.
+    pub(crate) fn device_id_path(mut self, path: impl Into<PathBuf>) -> Self {
+        self.config.device_id_path = Some(path.into());
+        self
+    }
+
+    /// Overrides the `User-Agent` header sent with every request.
+    pub(crate) fn user_agent(mut self, user_agent: impl Into<String>) -> Self {
+        self.config.user_agent = user_agent.into();
+        self
     }
 
     pub(crate) fn cache(mut self, enabled: bool) -> Self {
@@ -113,12 +134,12 @@ impl HttpTransportBuilder {
             Err(error) => return Err(error),
         }
 
-        let device_id = (0..52)
-            .map(|_| {
-                const HEX: &[u8] = b"0123456789ABCDEF";
-                HEX[rand::rng().random_range(0..16)] as char
-            })
-            .collect::<String>();
+        let user_agent =
+            HeaderValue::from_str(&config.user_agent).map_err(|_| Error::InvalidInput {
+                field: "user_agent",
+                reason: "must be a valid HTTP header value",
+            })?;
+        let device_id = load_device_id(config.device_id_path.as_deref())?;
 
         Ok(HttpTransport {
             store: Store::new(config.cache_ttl),
@@ -129,6 +150,7 @@ impl HttpTransportBuilder {
                 .map_err(Error::Http)?,
             jar,
             device_id,
+            user_agent,
         })
     }
 }
@@ -180,13 +202,18 @@ impl HttpTransport {
         let plan = plan.into_parts();
         let mut payload = plan.payload;
         let mut headers = HeaderMap::new();
-        headers.insert(USER_AGENT, HeaderValue::from_static(DEFAULT_USER_AGENT));
+        headers.insert(USER_AGENT, self.user_agent.clone());
         headers.insert(
             CONTENT_TYPE,
             HeaderValue::from_static("application/x-www-form-urlencoded"),
         );
+        headers.insert(
+            ACCEPT_LANGUAGE,
+            HeaderValue::from_static("zh-CN,zh;q=0.9,en;q=0.8"),
+        );
         if plan.url.contains("music.163.com") {
             headers.insert(REFERER, HeaderValue::from_static(BASE_URL));
+            headers.insert(ORIGIN, HeaderValue::from_static(BASE_URL));
         }
 
         match plan.encryption {
@@ -373,24 +400,89 @@ pub(crate) struct TransportConfig {
     cache_ttl: Duration,
     preserve_cookies: bool,
     cookie_path: PathBuf,
+    device_id_path: Option<PathBuf>,
+    user_agent: String,
     base_url: Url,
 }
 
+/// Opens `path` for a full rewrite and creates missing parent directories.
+///
+/// Session material is private to the user: new files start at `0600` on Unix
+/// instead of inheriting the process umask.
+fn open_private(path: &Path) -> std::io::Result<File> {
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    let mut options = OpenOptions::new();
+    options.create(true).truncate(true).write(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        options.mode(0o600);
+    }
+    options.open(path)
+}
+
 fn write_cookies(path: &Path, cookies: &str) -> TResult<()> {
-    let mut file = OpenOptions::new()
-        .create(true)
-        .truncate(true)
-        .write(true)
-        .open(path)
-        .map_err(|source| Error::CookiePersistence {
-            operation: "opening the cookie file for writing",
-            source,
-        })?;
+    let mut file = open_private(path).map_err(|source| Error::CookiePersistence {
+        operation: "opening the cookie file for writing",
+        source,
+    })?;
     file.write_all(cookies.as_bytes())
         .map_err(|source| Error::CookiePersistence {
             operation: "writing the cookie file",
             source,
         })
+}
+
+/// Returns the persisted device id, creating it on first use.
+///
+/// The id is an opaque 52-character hex token, matching the shape the mobile
+/// client sends. Reusing one value per installation avoids presenting every
+/// process as a brand-new device to the provider.
+fn load_device_id(path: Option<&Path>) -> TResult<String> {
+    let Some(path) = path else {
+        return Ok(generate_device_id());
+    };
+
+    match fs::read_to_string(path) {
+        Ok(raw) if !raw.trim().is_empty() => Ok(raw.trim().to_owned()),
+        Ok(_) => {
+            let id = generate_device_id();
+            write_device_id(path, &id)?;
+            Ok(id)
+        }
+        Err(error) if error.kind() == ErrorKind::NotFound => {
+            let id = generate_device_id();
+            write_device_id(path, &id)?;
+            Ok(id)
+        }
+        Err(source) => Err(Error::DeviceIdPersistence {
+            operation: "reading the device id file",
+            source,
+        }),
+    }
+}
+
+fn write_device_id(path: &Path, id: &str) -> TResult<()> {
+    let mut file = open_private(path).map_err(|source| Error::DeviceIdPersistence {
+        operation: "opening the device id file for writing",
+        source,
+    })?;
+    file.write_all(id.as_bytes())
+        .map_err(|source| Error::DeviceIdPersistence {
+            operation: "writing the device id file",
+            source,
+        })
+}
+
+fn generate_device_id() -> String {
+    (0..52)
+        .map(|_| {
+            const HEX: &[u8] = b"0123456789ABCDEF";
+            HEX[rand::rng().random_range(0..16)] as char
+        })
+        .collect()
 }
 
 fn read_cookies(path: &Path) -> TResult<String> {
@@ -438,11 +530,102 @@ mod tests {
         matchers::{method, path},
     };
 
-    use super::{Crypto, HttpTransportBuilder, RequestPlanBuilder, adapt_url};
+    use super::{Crypto, HttpTransportBuilder, RequestPlanBuilder, adapt_url, write_cookies};
+    use crate::Error;
 
     #[derive(Deserialize)]
     struct ContractResponse {
         code: u16,
+    }
+
+    #[test]
+    fn device_id_is_created_once_and_reused() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("nested/device.id");
+        let cookie_path = dir.path().join("cookies");
+
+        let first = HttpTransportBuilder::new(&cookie_path)
+            .unwrap()
+            .device_id_path(&path)
+            .build()
+            .unwrap()
+            .device_id;
+        let second = HttpTransportBuilder::new(&cookie_path)
+            .unwrap()
+            .device_id_path(&path)
+            .build()
+            .unwrap()
+            .device_id;
+
+        assert_eq!(first.len(), 52);
+        assert_eq!(first, second);
+        assert_eq!(std::fs::read_to_string(&path).unwrap(), first);
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let mode = std::fs::metadata(&path).unwrap().permissions().mode() & 0o777;
+            assert_eq!(mode, 0o600);
+        }
+    }
+
+    #[test]
+    fn cookie_file_is_created_with_private_permissions() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("nested/cookies");
+
+        write_cookies(&path, "MUSIC_U=abc").unwrap();
+
+        assert_eq!(std::fs::read_to_string(&path).unwrap(), "MUSIC_U=abc");
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let mode = std::fs::metadata(&path).unwrap().permissions().mode() & 0o777;
+            assert_eq!(mode, 0o600);
+        }
+    }
+
+    #[test]
+    fn configured_user_agent_and_origin_reach_the_request() {
+        let transport = HttpTransportBuilder::new(Path::new("/unused/ncmapi-cookie"))
+            .unwrap()
+            .persist_cookies(false)
+            .user_agent("Mozilla/5.0 (Macintosh) Chrome/155.0.0.0")
+            .build()
+            .unwrap();
+        let plan = RequestPlanBuilder::post("https://music.163.com/api/test")
+            .payload(json!({}))
+            .build();
+
+        let request = transport.to_http_request(plan).unwrap();
+
+        assert_eq!(
+            request.headers()[reqwest::header::USER_AGENT],
+            "Mozilla/5.0 (Macintosh) Chrome/155.0.0.0"
+        );
+        assert_eq!(
+            request.headers()[reqwest::header::ORIGIN],
+            "https://music.163.com"
+        );
+        assert_eq!(
+            request.headers()[reqwest::header::REFERER],
+            "https://music.163.com"
+        );
+    }
+
+    #[test]
+    fn invalid_user_agent_is_rejected() {
+        let result = HttpTransportBuilder::new(Path::new("/unused/ncmapi-cookie"))
+            .unwrap()
+            .user_agent("bad header\nvalue")
+            .build();
+
+        assert!(matches!(
+            result.err(),
+            Some(Error::InvalidInput {
+                field: "user_agent",
+                ..
+            })
+        ));
     }
 
     #[test]

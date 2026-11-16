@@ -35,6 +35,20 @@ async fn main() -> std::result::Result<(), Box<dyn std::error:Error>> {
 ```
 
 
+### Client identity
+
+```rust
+let api = NcmClient::builder()
+    .cookie_path(config.join("session.cookies"))
+    .device_id_path(config.join("device.id"))
+    .user_agent("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) ...")
+    .build()?;
+```
+
+`device_id_path` keeps one anonymous device id across processes, so repeated
+commands look like the same device. `user_agent` replaces the default SDK header
+when an application wants to present a browser or app string.
+
 ### Architecture
 
 The public surface is intentionally small:

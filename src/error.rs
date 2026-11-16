@@ -18,6 +18,13 @@ pub enum Error {
         source: io::Error,
     },
 
+    #[error("device id persistence failed while {operation}")]
+    DeviceIdPersistence {
+        operation: &'static str,
+        #[source]
+        source: io::Error,
+    },
+
     #[error("invalid URL: {0}")]
     InvalidUrl(String),
 
