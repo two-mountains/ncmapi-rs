@@ -2,6 +2,13 @@
 
 All notable changes to this project are documented here.
 
+## 1.9.1
+
+### Added
+
+- `Album::artist` and `Album::description`, so album search and detail map the
+  nested artist and description without a second request.
+
 ## 1.9.0
 
 ### Added

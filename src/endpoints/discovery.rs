@@ -387,7 +387,7 @@ mod tests {
             async fn execute(&self, plan: RequestPlan) -> crate::Result<Response> {
                 assert!(plan.into_parts().url.ends_with("/api/v1/album/242091487"));
                 Ok(Response::new(
-                    br#"{"code":200,"album":{"id":242091487,"name":"Mota","picUrl":"https://img","publishTime":1720800000000,"size":1},"songs":[{"id":7,"name":"Mota","ar":[{"id":31787312,"name":"Aash"}],"al":{"id":242091487,"name":"Mota","picUrl":"https://img"},"dt":154000}]}"#
+                    br#"{"code":200,"album":{"id":242091487,"name":"Mota","picUrl":"https://img","publishTime":1720800000000,"size":1,"artist":{"id":31787312,"name":"Aash"},"description":"single"},"songs":[{"id":7,"name":"Mota","ar":[{"id":31787312,"name":"Aash"}],"al":{"id":242091487,"name":"Mota","picUrl":"https://img"},"dt":154000}]}"#
                         .to_vec(),
                 ))
             }
@@ -396,6 +396,8 @@ mod tests {
         let client = NcmClient::with_transport(Arc::new(Stub));
         let response = client.discovery().album(242_091_487).await.unwrap();
         assert_eq!(response.body.album.name, "Mota");
+        assert_eq!(response.body.album.artist.unwrap().name, "Aash");
+        assert_eq!(response.body.album.description, "single");
         assert_eq!(response.body.songs[0].duration, 154_000);
         assert_eq!(response.body.songs[0].artists[0].name, "Aash");
     }

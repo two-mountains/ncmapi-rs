@@ -70,6 +70,10 @@ pub struct Album {
     pub publish_time: u64,
     #[serde(default, deserialize_with = "null_default")]
     pub size: u32,
+    #[serde(default, deserialize_with = "null_default")]
+    pub artist: Option<Artist>,
+    #[serde(default, deserialize_with = "null_default")]
+    pub description: String,
 }
 
 /// Track metadata returned by search and library queries.
