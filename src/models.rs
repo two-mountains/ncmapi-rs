@@ -66,6 +66,10 @@ pub struct Album {
     pub name: String,
     #[serde(default, deserialize_with = "null_default")]
     pub pic_url: String,
+    #[serde(default, deserialize_with = "null_default")]
+    pub publish_time: u64,
+    #[serde(default, deserialize_with = "null_default")]
+    pub size: u32,
 }
 
 /// Track metadata returned by search and library queries.
@@ -102,7 +106,70 @@ pub struct SearchResults {
     #[serde(default, deserialize_with = "null_default")]
     pub artists: Vec<Artist>,
     #[serde(default, deserialize_with = "null_default")]
+    pub albums: Vec<Album>,
+    #[serde(default, deserialize_with = "null_default")]
+    pub album_count: u64,
+    #[serde(default, deserialize_with = "null_default")]
     pub has_more: bool,
+}
+
+/// A full artist profile returned by the artist detail endpoint.
+#[derive(Clone, Debug, Default, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct ArtistDetail {
+    #[serde(default, deserialize_with = "null_default")]
+    pub id: u64,
+    #[serde(default, deserialize_with = "null_default")]
+    pub name: String,
+    #[serde(default, rename = "avatar", deserialize_with = "null_default")]
+    pub avatar_url: String,
+    #[serde(default, rename = "cover", deserialize_with = "null_default")]
+    pub cover_url: String,
+    #[serde(default, deserialize_with = "null_default")]
+    pub album_size: u64,
+    #[serde(default, deserialize_with = "null_default")]
+    pub music_size: u64,
+    #[serde(default, deserialize_with = "null_default")]
+    pub brief_desc: String,
+    #[serde(default, rename = "alias", deserialize_with = "null_default")]
+    pub aliases: Vec<String>,
+    #[serde(default, deserialize_with = "null_default")]
+    pub identities: Vec<String>,
+}
+
+/// The nested payload of an artist detail response.
+#[derive(Clone, Debug, Default, Deserialize, PartialEq, Eq)]
+pub struct ArtistDetailData {
+    #[serde(default, deserialize_with = "null_default")]
+    pub artist: ArtistDetail,
+}
+
+/// The payload of an artist detail response.
+#[derive(Clone, Debug, Default, Deserialize, PartialEq, Eq)]
+pub struct ArtistDetailBody {
+    #[serde(default, deserialize_with = "null_default")]
+    pub data: ArtistDetailData,
+}
+
+/// A page of an artist's albums.
+#[derive(Clone, Debug, Default, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct ArtistAlbumsBody {
+    #[serde(default, deserialize_with = "null_default")]
+    pub artist: Option<Artist>,
+    #[serde(default, deserialize_with = "null_default")]
+    pub hot_albums: Vec<Album>,
+    #[serde(default, deserialize_with = "null_default")]
+    pub more: bool,
+}
+
+/// An album with its full track list.
+#[derive(Clone, Debug, Default, Deserialize, PartialEq)]
+pub struct AlbumDetailBody {
+    #[serde(default, deserialize_with = "null_default")]
+    pub album: Album,
+    #[serde(default, deserialize_with = "null_default")]
+    pub songs: Vec<Track>,
 }
 
 /// The payload of a track-details response.

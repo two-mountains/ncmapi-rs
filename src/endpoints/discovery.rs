@@ -1,8 +1,12 @@
 use serde_json::json;
 
 use crate::{
-    ApiResponse, DailyBody, Error, NcmClient, Result, SearchBody, ToplistBody,
-    transport::{CLOUD_SEARCH, RECOMMEND_SONGS, RequestPlanBuilder, TOPLIST},
+    AlbumDetailBody, ApiResponse, ArtistAlbumsBody, ArtistDetailBody, DailyBody, Error, NcmClient,
+    Page, Result, SearchBody, ToplistBody,
+    transport::{
+        CLOUD_SEARCH, RECOMMEND_SONGS, RequestPlanBuilder, TOPLIST, album_detail, artist_albums,
+        artist_detail,
+    },
 };
 
 /// Discovery endpoints exposed by [`NcmClient::discovery`].
@@ -111,6 +115,61 @@ impl<'client> Discovery<'client> {
 
         self.client.execute(request).await?.decode()
     }
+
+    /// Fetches a full artist profile (public, no session required).
+    ///
+    /// # Errors
+    ///
+    /// Rejects a zero artist id before any request is made.
+    pub async fn artist(&self, id: u64) -> Result<ApiResponse<ArtistDetailBody>> {
+        if id == 0 {
+            return Err(Error::InvalidInput {
+                field: "artist id",
+                reason: "must be greater than zero",
+            });
+        }
+        let request = RequestPlanBuilder::get(artist_detail(id)).build();
+        self.client.execute(request).await?.decode()
+    }
+
+    /// Fetches a page of an artist's albums.
+    ///
+    /// # Errors
+    ///
+    /// Rejects a zero artist id or zero page limit before any request is made.
+    pub async fn artist_albums(
+        &self,
+        id: u64,
+        limit: u16,
+        offset: u32,
+    ) -> Result<ApiResponse<ArtistAlbumsBody>> {
+        if id == 0 {
+            return Err(Error::InvalidInput {
+                field: "artist id",
+                reason: "must be greater than zero",
+            });
+        }
+        let page = Page::new(limit, offset)?;
+        let request =
+            RequestPlanBuilder::get(artist_albums(id, page.limit(), page.offset())).build();
+        self.client.execute(request).await?.decode()
+    }
+
+    /// Fetches an album with its full ordered track list.
+    ///
+    /// # Errors
+    ///
+    /// Rejects a zero album id before any request is made.
+    pub async fn album(&self, id: u64) -> Result<ApiResponse<AlbumDetailBody>> {
+        if id == 0 {
+            return Err(Error::InvalidInput {
+                field: "album id",
+                reason: "must be greater than zero",
+            });
+        }
+        let request = RequestPlanBuilder::get(album_detail(id)).build();
+        self.client.execute(request).await?.decode()
+    }
 }
 
 #[cfg(test)]
@@ -201,5 +260,184 @@ mod tests {
         let response = client.discovery().toplists().await.unwrap();
         assert_eq!(response.body.list[0].name, "热歌榜");
         assert_eq!(response.body.list[0].track_count, 200);
+    }
+
+    #[tokio::test]
+    async fn search_decodes_album_results() {
+        use std::sync::Arc;
+
+        use async_trait::async_trait;
+
+        use crate::{
+            NcmClient, SearchQuery,
+            transport::{RequestPlan, Response, Transport},
+        };
+
+        struct Stub;
+
+        #[async_trait]
+        impl Transport for Stub {
+            async fn execute(&self, plan: RequestPlan) -> crate::Result<Response> {
+                assert!(plan.into_parts().url.ends_with("/api/cloudsearch/pc"));
+                Ok(Response::new(
+                    br#"{"code":200,"result":{"albums":[{"id":242091487,"name":"Mota","picUrl":"https://img","publishTime":1720800000000,"size":1}],"albumCount":4,"songs":[]}}"#
+                        .to_vec(),
+                ))
+            }
+        }
+
+        let client = NcmClient::with_transport(Arc::new(Stub));
+        let query = SearchQuery::new("mota").unwrap().kind(SearchKind::Album);
+        let response = client.discovery().search(query).await.unwrap();
+        assert_eq!(response.body.result.album_count, 4);
+        assert_eq!(response.body.result.albums[0].name, "Mota");
+        assert_eq!(response.body.result.albums[0].size, 1);
+    }
+
+    #[tokio::test]
+    async fn artist_detail_decodes_a_null_tolerant_profile() {
+        use std::sync::Arc;
+
+        use async_trait::async_trait;
+
+        use crate::{
+            NcmClient,
+            transport::{RequestPlan, Response, Transport},
+        };
+
+        struct Stub;
+
+        #[async_trait]
+        impl Transport for Stub {
+            async fn execute(&self, plan: RequestPlan) -> crate::Result<Response> {
+                assert!(
+                    plan.into_parts()
+                        .url
+                        .ends_with("/api/artist/head/info/get?id=6452")
+                );
+                Ok(Response::new(
+                    r#"{"code":200,"data":{"artist":{"id":6452,"name":"周杰伦","avatar":null,"cover":"https://cover","albumSize":49,"musicSize":592,"briefDesc":"bio","alias":["Jay Chou"],"identities":null}}}"#
+                        .as_bytes()
+                        .to_vec(),
+                ))
+            }
+        }
+
+        let client = NcmClient::with_transport(Arc::new(Stub));
+        let response = client.discovery().artist(6452).await.unwrap();
+        let artist = response.body.data.artist;
+        assert_eq!(artist.name, "周杰伦");
+        assert_eq!(artist.avatar_url, "");
+        assert_eq!(artist.album_size, 49);
+        assert_eq!(artist.aliases, vec!["Jay Chou"]);
+        assert!(artist.identities.is_empty());
+    }
+
+    #[tokio::test]
+    async fn artist_albums_pages_and_decodes_entries() {
+        use std::sync::Arc;
+
+        use async_trait::async_trait;
+
+        use crate::{
+            NcmClient,
+            transport::{RequestPlan, Response, Transport},
+        };
+
+        struct Stub;
+
+        #[async_trait]
+        impl Transport for Stub {
+            async fn execute(&self, plan: RequestPlan) -> crate::Result<Response> {
+                assert!(
+                    plan.into_parts()
+                        .url
+                        .ends_with("/api/artist/albums/6452?limit=2&offset=4")
+                );
+                Ok(Response::new(
+                    r#"{"code":200,"artist":{"id":6452,"name":"周杰伦"},"hotAlbums":[{"id":1,"name":"叶惠美","picUrl":"https://img","publishTime":1056988800000,"size":11}],"more":true}"#
+                        .as_bytes()
+                        .to_vec(),
+                ))
+            }
+        }
+
+        let client = NcmClient::with_transport(Arc::new(Stub));
+        let response = client.discovery().artist_albums(6452, 2, 4).await.unwrap();
+        assert!(response.body.more);
+        assert_eq!(response.body.hot_albums[0].name, "叶惠美");
+        assert_eq!(response.body.artist.unwrap().name, "周杰伦");
+    }
+
+    #[tokio::test]
+    async fn album_detail_decodes_metadata_and_tracks() {
+        use std::sync::Arc;
+
+        use async_trait::async_trait;
+
+        use crate::{
+            NcmClient,
+            transport::{RequestPlan, Response, Transport},
+        };
+
+        struct Stub;
+
+        #[async_trait]
+        impl Transport for Stub {
+            async fn execute(&self, plan: RequestPlan) -> crate::Result<Response> {
+                assert!(plan.into_parts().url.ends_with("/api/v1/album/242091487"));
+                Ok(Response::new(
+                    br#"{"code":200,"album":{"id":242091487,"name":"Mota","picUrl":"https://img","publishTime":1720800000000,"size":1},"songs":[{"id":7,"name":"Mota","ar":[{"id":31787312,"name":"Aash"}],"al":{"id":242091487,"name":"Mota","picUrl":"https://img"},"dt":154000}]}"#
+                        .to_vec(),
+                ))
+            }
+        }
+
+        let client = NcmClient::with_transport(Arc::new(Stub));
+        let response = client.discovery().album(242_091_487).await.unwrap();
+        assert_eq!(response.body.album.name, "Mota");
+        assert_eq!(response.body.songs[0].duration, 154_000);
+        assert_eq!(response.body.songs[0].artists[0].name, "Aash");
+    }
+
+    #[tokio::test]
+    async fn catalogue_requests_validate_their_inputs() {
+        use std::sync::Arc;
+
+        use async_trait::async_trait;
+
+        use crate::{
+            Error, NcmClient,
+            transport::{RequestPlan, Response, Transport},
+        };
+
+        struct Stub;
+
+        #[async_trait]
+        impl Transport for Stub {
+            async fn execute(&self, _: RequestPlan) -> crate::Result<Response> {
+                panic!("validation must happen before the request")
+            }
+        }
+
+        let client = NcmClient::with_transport(Arc::new(Stub));
+        assert!(matches!(
+            client.discovery().artist(0).await.unwrap_err(),
+            Error::InvalidInput {
+                field: "artist id",
+                ..
+            }
+        ));
+        assert!(matches!(
+            client.discovery().artist_albums(1, 0, 0).await.unwrap_err(),
+            Error::InvalidInput { .. }
+        ));
+        assert!(matches!(
+            client.discovery().album(0).await.unwrap_err(),
+            Error::InvalidInput {
+                field: "album id",
+                ..
+            }
+        ));
     }
 }

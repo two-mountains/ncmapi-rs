@@ -2,6 +2,15 @@
 
 All notable changes to this project are documented here.
 
+## 1.9.0
+
+### Added
+
+- Album search results: `SearchResults::albums` and `album_count`.
+- `Discovery::artist`, `Discovery::artist_albums` and `Discovery::album`
+  for public artist profiles, artist album pages and album track lists.
+- `Album::publish_time` and `Album::size`; all new fields are null-tolerant.
+
 ## 1.8.1
 
 ### Fixed

@@ -24,3 +24,15 @@ pub(crate) fn fm_trash(song_id: u64, time: u64) -> String {
 pub(crate) fn user_details(user_id: u64) -> String {
     format!("https://music.163.com/api/v1/user/detail/{user_id}")
 }
+
+pub(crate) fn artist_detail(artist_id: u64) -> String {
+    format!("https://music.163.com/api/artist/head/info/get?id={artist_id}")
+}
+
+pub(crate) fn artist_albums(artist_id: u64, limit: u16, offset: u32) -> String {
+    format!("https://music.163.com/api/artist/albums/{artist_id}?limit={limit}&offset={offset}")
+}
+
+pub(crate) fn album_detail(album_id: u64) -> String {
+    format!("https://music.163.com/api/v1/album/{album_id}")
+}
