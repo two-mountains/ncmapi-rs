@@ -68,20 +68,23 @@ impl<'client> Library<'client> {
     ///
     /// The provider has separate routes for the two fields; `None` skips that
     /// request, so an update that changes one field cannot clear the other.
+    /// The first failing response is returned, so a rejected rename cannot be
+    /// hidden by a successful description change.
     pub async fn playlist_update(
         &self,
         id: u64,
         name: Option<&str>,
         description: Option<&str>,
     ) -> Result<ApiResponse<EmptyBody>> {
-        let mut last = ApiResponse {
-            code: 200,
-            message: None,
-            body: EmptyBody {},
-        };
+        if name.is_none() && description.is_none() {
+            return Err(crate::Error::InvalidInput {
+                field: "playlist update",
+                reason: "pass a name or a description",
+            });
+        }
 
         if let Some(name) = name {
-            last = self
+            let response: ApiResponse<EmptyBody> = self
                 .client
                 .execute(
                     RequestPlanBuilder::post(PLAYLIST_RENAME)
@@ -91,9 +94,12 @@ impl<'client> Library<'client> {
                 )
                 .await?
                 .decode()?;
+            if response.code != 200 {
+                return Ok(response);
+            }
         }
         if let Some(description) = description {
-            last = self
+            let response: ApiResponse<EmptyBody> = self
                 .client
                 .execute(
                     RequestPlanBuilder::post(PLAYLIST_DESCRIBE)
@@ -103,19 +109,36 @@ impl<'client> Library<'client> {
                 )
                 .await?
                 .decode()?;
+            if response.code != 200 {
+                return Ok(response);
+            }
         }
 
-        Ok(last)
+        Ok(ApiResponse {
+            code: 200,
+            message: None,
+            body: EmptyBody {},
+        })
     }
 
-    /// Adds tracks to a playlist. Tracks already present are ignored by the
-    /// provider, so repeating the call is harmless.
+    /// Adds tracks to a playlist.
+    ///
+    /// The provider answers `502 歌单内歌曲重复` when a track is already there;
+    /// that is treated as success so a retry stays harmless.
     pub async fn playlist_add_tracks(
         &self,
         id: u64,
         tracks: &[TrackId],
     ) -> Result<ApiResponse<EmptyBody>> {
-        self.manipulate_tracks("add", id, tracks).await
+        let response = self.manipulate_tracks("add", id, tracks).await?;
+        if response.code == 502 {
+            return Ok(ApiResponse {
+                code: 200,
+                message: None,
+                body: EmptyBody {},
+            });
+        }
+        Ok(response)
     }
 
     /// Removes tracks from a playlist. Missing tracks are ignored by the
@@ -331,6 +354,29 @@ mod tests {
         }
     }
 
+    struct ScriptedTransport {
+        steps: std::sync::Mutex<Vec<(&'static str, &'static str)>>,
+    }
+
+    #[async_trait]
+    impl Transport for ScriptedTransport {
+        async fn execute(&self, plan: RequestPlan) -> Result<Response> {
+            let parts = plan.into_parts();
+            let (url, body) = {
+                let mut steps = self.steps.lock().unwrap();
+                steps.remove(0)
+            };
+            assert_eq!(parts.url, url);
+            Ok(Response::new(body.as_bytes().to_vec()))
+        }
+    }
+
+    fn scripted(steps: Vec<(&'static str, &'static str)>) -> NcmClient {
+        NcmClient::with_transport(Arc::new(ScriptedTransport {
+            steps: std::sync::Mutex::new(steps),
+        }))
+    }
+
     fn capturing(
         url: &'static str,
         body: &'static str,
@@ -373,6 +419,80 @@ mod tests {
         let sent = payload.lock().unwrap().clone().unwrap();
         assert_eq!(sent["name"], "Late night");
         assert_eq!(sent["privacy"], 10);
+    }
+
+    #[tokio::test]
+    async fn a_combined_update_stops_at_the_first_failure() {
+        let client = scripted(vec![
+            (
+                "https://music.163.com/api/playlist/update/name",
+                r#"{"code":400,"message":"标题字数异常"}"#,
+            ),
+            (
+                "https://music.163.com/api/playlist/desc/update",
+                r#"{"code":200}"#,
+            ),
+        ]);
+
+        let response = client
+            .library()
+            .playlist_update(77, Some("x".repeat(250).leak()), Some("fine"))
+            .await
+            .unwrap();
+
+        assert_eq!(response.code, 400, "the rejected rename is not hidden");
+    }
+
+    #[tokio::test]
+    async fn a_combined_update_runs_both_routes() {
+        let client = scripted(vec![
+            (
+                "https://music.163.com/api/playlist/update/name",
+                r#"{"code":200}"#,
+            ),
+            (
+                "https://music.163.com/api/playlist/desc/update",
+                r#"{"code":200}"#,
+            ),
+        ]);
+
+        let response = client
+            .library()
+            .playlist_update(77, Some("Name"), Some("Description"))
+            .await
+            .unwrap();
+
+        assert_eq!(response.code, 200);
+    }
+
+    #[tokio::test]
+    async fn an_empty_update_is_rejected_before_any_request() {
+        let client = scripted(Vec::new());
+        let error = client
+            .library()
+            .playlist_update(77, None, None)
+            .await
+            .unwrap_err();
+        assert!(
+            matches!(error, crate::Error::InvalidInput { .. }),
+            "{error}"
+        );
+    }
+
+    #[tokio::test]
+    async fn adding_a_duplicate_track_is_treated_as_success() {
+        let (client, _) = capturing(
+            "https://music.163.com/api/playlist/manipulate/tracks",
+            r#"{"code":502,"message":"歌单内歌曲重复"}"#,
+        );
+
+        let response = client
+            .library()
+            .playlist_add_tracks(77, &[TrackId(42)])
+            .await
+            .unwrap();
+
+        assert_eq!(response.code, 200, "a duplicate add is idempotent");
     }
 
     #[tokio::test]

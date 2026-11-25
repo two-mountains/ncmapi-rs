@@ -2,6 +2,16 @@
 
 All notable changes to this project are documented here.
 
+## 1.10.2
+
+### Fixed
+
+- `playlist_update` returns the first failing response instead of the last, so
+  a rejected rename is no longer hidden by a successful description change, and
+  an update with neither field is `InvalidInput`.
+- `playlist_add_tracks` treats the provider's `502 歌单内歌曲重复` as success, so
+  adding an already-present track and retrying are harmless as documented.
+
 ## 1.10.1
 
 ### Fixed
