@@ -61,15 +61,17 @@ impl<'client> Library<'client> {
             .uncacheable()
             .build();
 
-        self.client.execute(request).await?.decode()
+        let response = self.client.execute(request).await?.decode();
+        self.client.clear_cache();
+        response
     }
 
     /// Renames a playlist and/or replaces its description.
     ///
     /// The provider has separate routes for the two fields; `None` skips that
-    /// request, so an update that changes one field cannot clear the other.
-    /// The first failing response is returned, so a rejected rename cannot be
-    /// hidden by a successful description change.
+    /// request, so an update that changes one field cannot clear the other. The
+    /// first failing response is returned, and the response cache is dropped
+    /// either way so a later read sees the attempted change.
     pub async fn playlist_update(
         &self,
         id: u64,
@@ -83,6 +85,7 @@ impl<'client> Library<'client> {
             });
         }
 
+        let mut failure = None;
         if let Some(name) = name {
             let response: ApiResponse<EmptyBody> = self
                 .client
@@ -95,10 +98,12 @@ impl<'client> Library<'client> {
                 .await?
                 .decode()?;
             if response.code != 200 {
-                return Ok(response);
+                failure = Some(response);
             }
         }
-        if let Some(description) = description {
+        if failure.is_none()
+            && let Some(description) = description
+        {
             let response: ApiResponse<EmptyBody> = self
                 .client
                 .execute(
@@ -110,10 +115,14 @@ impl<'client> Library<'client> {
                 .await?
                 .decode()?;
             if response.code != 200 {
-                return Ok(response);
+                failure = Some(response);
             }
         }
 
+        self.client.clear_cache();
+        if let Some(response) = failure {
+            return Ok(response);
+        }
         Ok(ApiResponse {
             code: 200,
             message: None,
@@ -131,6 +140,7 @@ impl<'client> Library<'client> {
         tracks: &[TrackId],
     ) -> Result<ApiResponse<EmptyBody>> {
         let response = self.manipulate_tracks("add", id, tracks).await?;
+        self.client.clear_cache();
         let duplicate = response.code == 502
             && response
                 .message
@@ -153,7 +163,9 @@ impl<'client> Library<'client> {
         id: u64,
         tracks: &[TrackId],
     ) -> Result<ApiResponse<EmptyBody>> {
-        self.manipulate_tracks("del", id, tracks).await
+        let response = self.manipulate_tracks("del", id, tracks).await?;
+        self.client.clear_cache();
+        Ok(response)
     }
 
     async fn manipulate_tracks(
@@ -186,7 +198,9 @@ impl<'client> Library<'client> {
             .uncacheable()
             .build();
 
-        self.client.execute(request).await?.decode()
+        let response = self.client.execute(request).await?.decode();
+        self.client.clear_cache();
+        response
     }
 
     /// Fetches a page of a playlist's tracks.
@@ -405,6 +419,62 @@ mod tests {
 
     fn client(url: &'static str, body: &'static str) -> NcmClient {
         NcmClient::with_transport(Arc::new(StubTransport { url, body }))
+    }
+
+    #[tokio::test]
+    async fn every_write_drops_the_response_cache() {
+        use std::sync::atomic::{AtomicUsize, Ordering};
+
+        struct Counting {
+            cleared: AtomicUsize,
+            body: &'static str,
+        }
+
+        #[async_trait]
+        impl Transport for Counting {
+            async fn execute(&self, _plan: RequestPlan) -> Result<Response> {
+                Ok(Response::new(self.body.as_bytes().to_vec()))
+            }
+
+            fn clear_cache(&self) {
+                self.cleared.fetch_add(1, Ordering::SeqCst);
+            }
+        }
+
+        let transport = Arc::new(Counting {
+            cleared: AtomicUsize::new(0),
+            body: r#"{"code":200,"id":77}"#,
+        });
+        let shared: Arc<dyn Transport> = transport.clone();
+        let client = NcmClient::with_transport(shared);
+
+        client
+            .library()
+            .playlist_create("Name", false)
+            .await
+            .unwrap();
+        client
+            .library()
+            .playlist_update(77, Some("Name"), Some("Desc"))
+            .await
+            .unwrap();
+        client
+            .library()
+            .playlist_add_tracks(77, &[TrackId(42)])
+            .await
+            .unwrap();
+        client
+            .library()
+            .playlist_remove_tracks(77, &[TrackId(42)])
+            .await
+            .unwrap();
+        client.library().playlist_delete(77).await.unwrap();
+
+        assert_eq!(
+            transport.cleared.load(Ordering::SeqCst),
+            5,
+            "create, update, add, remove and delete each clear the cache"
+        );
     }
 
     #[tokio::test]

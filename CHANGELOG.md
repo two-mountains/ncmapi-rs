@@ -2,6 +2,15 @@
 
 All notable changes to this project are documented here.
 
+## 1.10.5
+
+### Changed
+
+- Every playlist write drops the response cache itself, so callers cannot
+  forget to invalidate it: create, update, add, remove and delete all clear
+  after the attempt. `NcmClient::clear_cache()` stays public for other
+  write-then-read flows.
+
 ## 1.10.4
 
 ### Added
