@@ -1,12 +1,12 @@
 use serde_json::json;
 
 use crate::{
-    ApiResponse, CloudBody, CommentsBody, LyricsBody, NcmClient, PlaylistDetailBody, Result,
-    StreamUrlsBody, TrackDetailsBody, TrackId,
+    ApiResponse, CloudBody, CommentsBody, EmptyBody, LyricsBody, NcmClient, PlaylistCreatedBody,
+    PlaylistDetailBody, Result, StreamUrlsBody, TrackDetailsBody, TrackId,
     crypto::Crypto,
     transport::{
-        COMMENTS, LYRIC, PLAYLIST_DETAIL, RequestPlanBuilder, STREAM_URLS, TRACK_DETAILS,
-        USER_CLOUD,
+        COMMENTS, LYRIC, PLAYLIST_CREATE, PLAYLIST_DELETE, PLAYLIST_DETAIL, PLAYLIST_MANIPULATE,
+        PLAYLIST_UPDATE, RequestPlanBuilder, STREAM_URLS, TRACK_DETAILS, USER_CLOUD,
     },
 };
 
@@ -40,6 +40,101 @@ impl<'client> Library<'client> {
         let request = RequestPlanBuilder::post(PLAYLIST_DETAIL)
             .payload(json!({ "id": id, "n": 1000, "s": 8 }))
             .build();
+        self.client.execute(request).await?.decode()
+    }
+
+    /// Creates an empty playlist and returns its id.
+    ///
+    /// The provider does not return the full playlist page; a later
+    /// [`Self::playlist_detail`] is authoritative.
+    pub async fn playlist_create(
+        &self,
+        name: &str,
+        private: bool,
+    ) -> Result<ApiResponse<PlaylistCreatedBody>> {
+        let request = RequestPlanBuilder::post(PLAYLIST_CREATE)
+            .payload(json!({
+                "name": name,
+                "privacy": if private { 10 } else { 0 },
+            }))
+            .uncacheable()
+            .build();
+
+        self.client.execute(request).await?.decode()
+    }
+
+    /// Renames a playlist and/or replaces its description.
+    ///
+    /// `None` leaves a field unchanged; the provider treats an omitted key as
+    /// "keep the current value".
+    pub async fn playlist_update(
+        &self,
+        id: u64,
+        name: Option<&str>,
+        description: Option<&str>,
+    ) -> Result<ApiResponse<EmptyBody>> {
+        let mut payload = json!({ "id": id });
+        if let Some(name) = name {
+            payload["name"] = json!(name);
+        }
+        if let Some(description) = description {
+            payload["desc"] = json!(description);
+        }
+        let request = RequestPlanBuilder::post(PLAYLIST_UPDATE)
+            .payload(payload)
+            .uncacheable()
+            .build();
+
+        self.client.execute(request).await?.decode()
+    }
+
+    /// Adds tracks to a playlist. Tracks already present are ignored by the
+    /// provider, so repeating the call is harmless.
+    pub async fn playlist_add_tracks(
+        &self,
+        id: u64,
+        tracks: &[TrackId],
+    ) -> Result<ApiResponse<EmptyBody>> {
+        self.manipulate_tracks("add", id, tracks).await
+    }
+
+    /// Removes tracks from a playlist. Missing tracks are ignored by the
+    /// provider, so repeating the call is harmless.
+    pub async fn playlist_remove_tracks(
+        &self,
+        id: u64,
+        tracks: &[TrackId],
+    ) -> Result<ApiResponse<EmptyBody>> {
+        self.manipulate_tracks("del", id, tracks).await
+    }
+
+    async fn manipulate_tracks(
+        &self,
+        op: &str,
+        id: u64,
+        tracks: &[TrackId],
+    ) -> Result<ApiResponse<EmptyBody>> {
+        let ids = tracks.iter().map(|track| track.0).collect::<Vec<_>>();
+        let request = RequestPlanBuilder::post(PLAYLIST_MANIPULATE)
+            .payload(json!({
+                "op": op,
+                "pid": id,
+                "trackIds": json!(ids).to_string(),
+                "imme": true,
+            }))
+            .uncacheable()
+            .build();
+
+        self.client.execute(request).await?.decode()
+    }
+
+    /// Deletes one of the user's playlists.
+    pub async fn playlist_delete(&self, id: u64) -> Result<ApiResponse<EmptyBody>> {
+        let request = RequestPlanBuilder::post(PLAYLIST_DELETE)
+            .payload(json!({ "id": id }))
+            .uncacheable()
+            .build();
+
         self.client.execute(request).await?.decode()
     }
 
@@ -188,13 +283,42 @@ mod tests {
     use async_trait::async_trait;
 
     use crate::{
-        LyricsBody, NcmClient, Result,
+        LyricsBody, NcmClient, Result, TrackId,
         transport::{RequestPlan, Response, Transport},
     };
 
     struct StubTransport {
         url: &'static str,
         body: &'static str,
+    }
+
+    struct CapturingTransport {
+        url: &'static str,
+        body: &'static str,
+        payload: Arc<std::sync::Mutex<Option<serde_json::Value>>>,
+    }
+
+    #[async_trait]
+    impl Transport for CapturingTransport {
+        async fn execute(&self, plan: RequestPlan) -> Result<Response> {
+            let parts = plan.into_parts();
+            assert_eq!(parts.url, self.url);
+            *self.payload.lock().unwrap() = Some(parts.payload);
+            Ok(Response::new(self.body.as_bytes().to_vec()))
+        }
+    }
+
+    fn capturing(
+        url: &'static str,
+        body: &'static str,
+    ) -> (NcmClient, Arc<std::sync::Mutex<Option<serde_json::Value>>>) {
+        let payload = Arc::new(std::sync::Mutex::new(None));
+        let client = NcmClient::with_transport(Arc::new(CapturingTransport {
+            url,
+            body,
+            payload: Arc::clone(&payload),
+        }));
+        (client, payload)
     }
 
     #[async_trait]
@@ -207,6 +331,89 @@ mod tests {
 
     fn client(url: &'static str, body: &'static str) -> NcmClient {
         NcmClient::with_transport(Arc::new(StubTransport { url, body }))
+    }
+
+    #[tokio::test]
+    async fn playlist_create_sends_privacy_and_returns_the_id() {
+        let (client, payload) = capturing(
+            "https://music.163.com/api/playlist/create",
+            r#"{"code":200,"id":77,"name":"Late night"}"#,
+        );
+        let response = client
+            .library()
+            .playlist_create("Late night", true)
+            .await
+            .unwrap();
+
+        assert_eq!(response.body.id, 77);
+        assert_eq!(response.body.name.as_deref(), Some("Late night"));
+        let sent = payload.lock().unwrap().clone().unwrap();
+        assert_eq!(sent["name"], "Late night");
+        assert_eq!(sent["privacy"], 10);
+    }
+
+    #[tokio::test]
+    async fn playlist_update_sends_only_the_fields_it_changes() {
+        let (client, payload) = capturing(
+            "https://music.163.com/api/playlist/update",
+            r#"{"code":200}"#,
+        );
+        client
+            .library()
+            .playlist_update(77, Some("Late night 2"), None)
+            .await
+            .unwrap();
+
+        let sent = payload.lock().unwrap().clone().unwrap();
+        assert_eq!(sent["id"], 77);
+        assert_eq!(sent["name"], "Late night 2");
+        assert!(sent.get("desc").is_none(), "an omitted field is untouched");
+    }
+
+    #[tokio::test]
+    async fn playlist_tracks_are_added_and_removed_with_the_same_route() {
+        for (op, add) in [("add", true), ("del", false)] {
+            let (client, payload) = capturing(
+                "https://music.163.com/api/playlist/manipulate/tracks",
+                r#"{"code":200}"#,
+            );
+            if add {
+                client
+                    .library()
+                    .playlist_add_tracks(77, &[TrackId(42), TrackId(43)])
+                    .await
+                    .unwrap();
+            } else {
+                client
+                    .library()
+                    .playlist_remove_tracks(77, &[TrackId(42)])
+                    .await
+                    .unwrap();
+            }
+
+            let sent = payload.lock().unwrap().clone().unwrap();
+            assert_eq!(sent["op"], op);
+            assert_eq!(sent["pid"], 77);
+            assert_eq!(sent["imme"], true);
+            let ids: Vec<u64> = serde_json::from_str(sent["trackIds"].as_str().unwrap()).unwrap();
+            if add {
+                assert_eq!(ids, vec![42, 43]);
+            } else {
+                assert_eq!(ids, vec![42]);
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn playlist_delete_sends_the_id() {
+        let (client, payload) = capturing(
+            "https://music.163.com/api/playlist/delete",
+            r#"{"code":200}"#,
+        );
+        client.library().playlist_delete(77).await.unwrap();
+
+        let sent = payload.lock().unwrap().clone().unwrap();
+        assert_eq!(sent["id"], 77);
     }
 
     #[tokio::test]

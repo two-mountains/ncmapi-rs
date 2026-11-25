@@ -16,6 +16,10 @@ pub(crate) const LIKELIST: &str = "https://music.163.com/weapi/song/like/get";
 pub(crate) const TOPLIST: &str = "https://music.163.com/api/toplist";
 pub(crate) const USER_CLOUD: &str = "https://music.163.com/api/v1/cloud/get";
 pub(crate) const COMMENTS: &str = "https://music.163.com/api/v1/resource/comments/R_SO_4_";
+pub(crate) const PLAYLIST_CREATE: &str = "https://music.163.com/api/playlist/create";
+pub(crate) const PLAYLIST_UPDATE: &str = "https://music.163.com/api/playlist/update";
+pub(crate) const PLAYLIST_MANIPULATE: &str = "https://music.163.com/api/playlist/manipulate/tracks";
+pub(crate) const PLAYLIST_DELETE: &str = "https://music.163.com/api/playlist/delete";
 
 pub(crate) fn fm_trash(song_id: u64, time: u64) -> String {
     format!("https://music.163.com/weapi/radio/trash/add?alg=RT&songId={song_id}&time={time}")

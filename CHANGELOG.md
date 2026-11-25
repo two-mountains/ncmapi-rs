@@ -2,6 +2,15 @@
 
 All notable changes to this project are documented here.
 
+## 1.10.0
+
+### Added
+
+- Playlist writes: `Library::playlist_create`, `playlist_update`,
+  `playlist_add_tracks`, `playlist_remove_tracks` and `playlist_delete`, with
+  the `PlaylistCreatedBody` response model. Add/remove are idempotent on the
+  provider, so retries are safe; create returns the new id.
+
 ## 1.9.1
 
 ### Added

@@ -413,6 +413,16 @@ pub struct ToplistBody {
     pub list: Vec<ToplistEntry>,
 }
 
+/// Response of `playlist/create`: the new playlist's id, and its name when the
+/// provider echoes it back.
+#[derive(Clone, Debug, Default, Deserialize, PartialEq, Eq)]
+pub struct PlaylistCreatedBody {
+    #[serde(default)]
+    pub id: u64,
+    #[serde(default)]
+    pub name: Option<String>,
+}
+
 /// Placeholder body for endpoints that only return a status code.
 #[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq)]
 pub struct EmptyBody {}

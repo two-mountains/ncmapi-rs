@@ -15,9 +15,10 @@ pub use models::{
     AccountBody, Album, AlbumDetailBody, ApiResponse, Artist, ArtistAlbumsBody, ArtistDetail,
     ArtistDetailBody, ArtistDetailData, CloudBody, CloudTrack, Comment, CommentUser, CommentsBody,
     Creator, DailyBody, DailyData, EmptyBody, FmBody, LikeListBody, Lyric, LyricsBody, Playlist,
-    PlaylistDetail, PlaylistDetailBody, QrKeyBody, QrLoginBody, RecommendReason, RepliedComment,
-    SearchBody, SearchResults, StreamUrl, StreamUrlsBody, ToplistBody, ToplistEntry, Track,
-    TrackDetailsBody, TrackId, TrackRef, UserDetailsBody, UserId, UserPlaylistsBody, UserProfile,
+    PlaylistCreatedBody, PlaylistDetail, PlaylistDetailBody, QrKeyBody, QrLoginBody,
+    RecommendReason, RepliedComment, SearchBody, SearchResults, StreamUrl, StreamUrlsBody,
+    ToplistBody, ToplistEntry, Track, TrackDetailsBody, TrackId, TrackRef, UserDetailsBody, UserId,
+    UserPlaylistsBody, UserProfile,
 };
 pub use sdk::{NcmClient, NcmClientBuilder};
 #[deprecated(note = "use NcmClient instead")]
