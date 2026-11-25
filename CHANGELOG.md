@@ -2,6 +2,14 @@
 
 All notable changes to this project are documented here.
 
+## 1.10.3
+
+### Fixed
+
+- Only the provider's duplicate-track `502 歌单内歌曲重复` is treated as success
+  on add; any other `502` is returned to the caller. Tests for a create response
+  without an id and for a non-200 create are included in the published package.
+
 ## 1.10.2
 
 ### Fixed

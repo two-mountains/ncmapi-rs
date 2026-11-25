@@ -131,7 +131,12 @@ impl<'client> Library<'client> {
         tracks: &[TrackId],
     ) -> Result<ApiResponse<EmptyBody>> {
         let response = self.manipulate_tracks("add", id, tracks).await?;
-        if response.code == 502 {
+        let duplicate = response.code == 502
+            && response
+                .message
+                .as_deref()
+                .is_some_and(|message| message.contains("重复"));
+        if duplicate {
             return Ok(ApiResponse {
                 code: 200,
                 message: None,
@@ -480,6 +485,22 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn an_unrelated_502_is_not_swallowed() {
+        let (client, _) = capturing(
+            "https://music.163.com/api/playlist/manipulate/tracks",
+            r#"{"code":502,"message":"server busy"}"#,
+        );
+
+        let response = client
+            .library()
+            .playlist_add_tracks(77, &[TrackId(42)])
+            .await
+            .unwrap();
+
+        assert_eq!(response.code, 502);
+    }
+
+    #[tokio::test]
     async fn adding_a_duplicate_track_is_treated_as_success() {
         let (client, _) = capturing(
             "https://music.163.com/api/playlist/manipulate/tracks",
@@ -493,6 +514,34 @@ mod tests {
             .unwrap();
 
         assert_eq!(response.code, 200, "a duplicate add is idempotent");
+    }
+
+    #[tokio::test]
+    async fn a_create_without_an_id_decodes_to_zero() {
+        let (client, _) = capturing(
+            "https://music.163.com/api/playlist/create",
+            r#"{"code":200}"#,
+        );
+        let response = client
+            .library()
+            .playlist_create("Late night", false)
+            .await
+            .unwrap();
+        assert_eq!(response.body.id, 0, "the caller turns this into an error");
+    }
+
+    #[tokio::test]
+    async fn a_create_error_code_is_passed_through() {
+        let (client, _) = capturing(
+            "https://music.163.com/api/playlist/create",
+            r#"{"code":301,"message":"need login"}"#,
+        );
+        let response = client
+            .library()
+            .playlist_create("Late night", false)
+            .await
+            .unwrap();
+        assert_eq!(response.code, 301);
     }
 
     #[tokio::test]
