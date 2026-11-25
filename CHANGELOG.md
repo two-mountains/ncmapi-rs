@@ -2,6 +2,16 @@
 
 All notable changes to this project are documented here.
 
+## 1.10.1
+
+### Fixed
+
+- `playlist_update` now uses the provider's real rename and description
+  routes (`/api/playlist/update/name`, `/api/playlist/desc/update`); the
+  combined route answered `404 接口未找到`.
+- `playlist_delete` posts to `/api/playlist/remove` with `ids` as a JSON array
+  string; `/api/playlist/delete` with `id` answered `400 请求参数错误`.
+
 ## 1.10.0
 
 ### Added

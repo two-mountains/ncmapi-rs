@@ -5,8 +5,9 @@ use crate::{
     PlaylistDetailBody, Result, StreamUrlsBody, TrackDetailsBody, TrackId,
     crypto::Crypto,
     transport::{
-        COMMENTS, LYRIC, PLAYLIST_CREATE, PLAYLIST_DELETE, PLAYLIST_DETAIL, PLAYLIST_MANIPULATE,
-        PLAYLIST_UPDATE, RequestPlanBuilder, STREAM_URLS, TRACK_DETAILS, USER_CLOUD,
+        COMMENTS, LYRIC, PLAYLIST_CREATE, PLAYLIST_DESCRIBE, PLAYLIST_DETAIL, PLAYLIST_MANIPULATE,
+        PLAYLIST_REMOVE, PLAYLIST_RENAME, RequestPlanBuilder, STREAM_URLS, TRACK_DETAILS,
+        USER_CLOUD,
     },
 };
 
@@ -65,27 +66,46 @@ impl<'client> Library<'client> {
 
     /// Renames a playlist and/or replaces its description.
     ///
-    /// `None` leaves a field unchanged; the provider treats an omitted key as
-    /// "keep the current value".
+    /// The provider has separate routes for the two fields; `None` skips that
+    /// request, so an update that changes one field cannot clear the other.
     pub async fn playlist_update(
         &self,
         id: u64,
         name: Option<&str>,
         description: Option<&str>,
     ) -> Result<ApiResponse<EmptyBody>> {
-        let mut payload = json!({ "id": id });
+        let mut last = ApiResponse {
+            code: 200,
+            message: None,
+            body: EmptyBody {},
+        };
+
         if let Some(name) = name {
-            payload["name"] = json!(name);
+            last = self
+                .client
+                .execute(
+                    RequestPlanBuilder::post(PLAYLIST_RENAME)
+                        .payload(json!({ "id": id, "name": name }))
+                        .uncacheable()
+                        .build(),
+                )
+                .await?
+                .decode()?;
         }
         if let Some(description) = description {
-            payload["desc"] = json!(description);
+            last = self
+                .client
+                .execute(
+                    RequestPlanBuilder::post(PLAYLIST_DESCRIBE)
+                        .payload(json!({ "id": id, "desc": description }))
+                        .uncacheable()
+                        .build(),
+                )
+                .await?
+                .decode()?;
         }
-        let request = RequestPlanBuilder::post(PLAYLIST_UPDATE)
-            .payload(payload)
-            .uncacheable()
-            .build();
 
-        self.client.execute(request).await?.decode()
+        Ok(last)
     }
 
     /// Adds tracks to a playlist. Tracks already present are ignored by the
@@ -129,9 +149,12 @@ impl<'client> Library<'client> {
     }
 
     /// Deletes one of the user's playlists.
+    ///
+    /// The provider's remove route takes `ids` as a JSON array string, not
+    /// `id`; sending `id` answers `400 请求参数错误`.
     pub async fn playlist_delete(&self, id: u64) -> Result<ApiResponse<EmptyBody>> {
-        let request = RequestPlanBuilder::post(PLAYLIST_DELETE)
-            .payload(json!({ "id": id }))
+        let request = RequestPlanBuilder::post(PLAYLIST_REMOVE)
+            .payload(json!({ "ids": json!([id]).to_string() }))
             .uncacheable()
             .build();
 
@@ -353,9 +376,9 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn playlist_update_sends_only_the_fields_it_changes() {
+    async fn playlist_rename_uses_its_own_route() {
         let (client, payload) = capturing(
-            "https://music.163.com/api/playlist/update",
+            "https://music.163.com/api/playlist/update/name",
             r#"{"code":200}"#,
         );
         client
@@ -368,6 +391,24 @@ mod tests {
         assert_eq!(sent["id"], 77);
         assert_eq!(sent["name"], "Late night 2");
         assert!(sent.get("desc").is_none(), "an omitted field is untouched");
+    }
+
+    #[tokio::test]
+    async fn playlist_describe_uses_its_own_route() {
+        let (client, payload) = capturing(
+            "https://music.163.com/api/playlist/desc/update",
+            r#"{"code":200}"#,
+        );
+        client
+            .library()
+            .playlist_update(77, None, Some("after 22:00"))
+            .await
+            .unwrap();
+
+        let sent = payload.lock().unwrap().clone().unwrap();
+        assert_eq!(sent["id"], 77);
+        assert_eq!(sent["desc"], "after 22:00");
+        assert!(sent.get("name").is_none());
     }
 
     #[tokio::test]
@@ -405,15 +446,16 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn playlist_delete_sends_the_id() {
+    async fn playlist_delete_sends_an_ids_array_string() {
         let (client, payload) = capturing(
-            "https://music.163.com/api/playlist/delete",
+            "https://music.163.com/api/playlist/remove",
             r#"{"code":200}"#,
         );
         client.library().playlist_delete(77).await.unwrap();
 
         let sent = payload.lock().unwrap().clone().unwrap();
-        assert_eq!(sent["id"], 77);
+        let ids: Vec<u64> = serde_json::from_str(sent["ids"].as_str().unwrap()).unwrap();
+        assert_eq!(ids, vec![77]);
     }
 
     #[tokio::test]
