@@ -2,6 +2,14 @@
 
 All notable changes to this project are documented here.
 
+## 1.10.4
+
+### Added
+
+- `NcmClient::clear_cache()` drops every cached response. Callers that write
+  through the SDK must use it so a read-after-write (for example a playlist
+  list right after creating one) sees the change instead of the cached answer.
+
 ## 1.10.3
 
 ### Fixed

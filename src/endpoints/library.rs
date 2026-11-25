@@ -408,6 +408,34 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn the_client_can_drop_cached_responses_after_a_write() {
+        struct Counting {
+            cleared: std::sync::atomic::AtomicBool,
+        }
+
+        #[async_trait]
+        impl Transport for Counting {
+            async fn execute(&self, _plan: RequestPlan) -> Result<Response> {
+                Ok(Response::new(b"{\"code\":200}".to_vec()))
+            }
+
+            fn clear_cache(&self) {
+                self.cleared
+                    .store(true, std::sync::atomic::Ordering::SeqCst);
+            }
+        }
+
+        let transport = Arc::new(Counting {
+            cleared: std::sync::atomic::AtomicBool::new(false),
+        });
+        let shared: Arc<dyn Transport> = transport.clone();
+        let client = NcmClient::with_transport(shared);
+        client.clear_cache();
+
+        assert!(transport.cleared.load(std::sync::atomic::Ordering::SeqCst));
+    }
+
+    #[tokio::test]
     async fn playlist_create_sends_privacy_and_returns_the_id() {
         let (client, payload) = capturing(
             "https://music.163.com/api/playlist/create",

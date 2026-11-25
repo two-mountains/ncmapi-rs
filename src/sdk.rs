@@ -106,6 +106,14 @@ impl NcmClientBuilder {
 }
 
 impl NcmClient {
+    /// Drops every cached response.
+    ///
+    /// Call it after a write so the next read sees the change; the default
+    /// response cache otherwise serves the pre-write answer for its TTL.
+    pub fn clear_cache(&self) {
+        self.transport.clear_cache();
+    }
+
     pub fn builder() -> NcmClientBuilder {
         NcmClientBuilder::default()
     }

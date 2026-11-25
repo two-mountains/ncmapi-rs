@@ -50,6 +50,9 @@ pub(crate) use routes::{
 #[async_trait]
 pub(crate) trait Transport: Send + Sync {
     async fn execute(&self, request: RequestPlan) -> TResult<Response>;
+
+    /// Drops cached responses so a write is visible to the next read.
+    fn clear_cache(&self) {}
 }
 
 pub(crate) struct HttpTransport {
@@ -157,6 +160,10 @@ impl HttpTransportBuilder {
 }
 
 impl HttpTransport {
+    fn clear_store(&self) {
+        self.store.clear();
+    }
+
     async fn execute_request(&self, request: RequestPlan) -> TResult<Response> {
         let id = request.id()?;
         let cacheable = request.cacheable();
@@ -392,6 +399,10 @@ impl HttpTransport {
 impl Transport for HttpTransport {
     async fn execute(&self, request: RequestPlan) -> TResult<Response> {
         self.execute_request(request).await
+    }
+
+    fn clear_cache(&self) {
+        self.clear_store();
     }
 }
 

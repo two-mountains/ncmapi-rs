@@ -20,4 +20,27 @@ impl Store {
     pub fn insert(&self, id: String, response: Response) {
         self.0.insert(id, response);
     }
+
+    pub fn clear(&self) {
+        self.0.invalidate_all();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::time::Duration;
+
+    use super::Store;
+    use crate::transport::response::Response;
+
+    #[test]
+    fn clearing_drops_every_cached_response() {
+        let store = Store::new(Duration::from_secs(60));
+        store.insert("key".to_owned(), Response::new(b"body".to_vec()));
+        assert!(store.get("key").is_some());
+
+        store.clear();
+
+        assert!(store.get("key").is_none());
+    }
 }
