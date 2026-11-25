@@ -2,6 +2,14 @@
 
 All notable changes to this project are documented here.
 
+## 1.10.6
+
+### Fixed
+
+- `playlist_update` drops the response cache even when a request fails or the
+  transport errors after a partial update, matching its documentation; the
+  invalid-input fast path still returns before any request.
+
 ## 1.10.5
 
 ### Changed

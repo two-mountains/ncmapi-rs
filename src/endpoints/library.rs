@@ -71,8 +71,20 @@ impl<'client> Library<'client> {
     /// The provider has separate routes for the two fields; `None` skips that
     /// request, so an update that changes one field cannot clear the other. The
     /// first failing response is returned, and the response cache is dropped
-    /// either way so a later read sees the attempted change.
+    /// even when a request fails, so a later read never serves the pre-write
+    /// answer.
     pub async fn playlist_update(
+        &self,
+        id: u64,
+        name: Option<&str>,
+        description: Option<&str>,
+    ) -> Result<ApiResponse<EmptyBody>> {
+        let result = self.playlist_update_inner(id, name, description).await;
+        self.client.clear_cache();
+        result
+    }
+
+    async fn playlist_update_inner(
         &self,
         id: u64,
         name: Option<&str>,
@@ -85,7 +97,6 @@ impl<'client> Library<'client> {
             });
         }
 
-        let mut failure = None;
         if let Some(name) = name {
             let response: ApiResponse<EmptyBody> = self
                 .client
@@ -98,12 +109,10 @@ impl<'client> Library<'client> {
                 .await?
                 .decode()?;
             if response.code != 200 {
-                failure = Some(response);
+                return Ok(response);
             }
         }
-        if failure.is_none()
-            && let Some(description) = description
-        {
+        if let Some(description) = description {
             let response: ApiResponse<EmptyBody> = self
                 .client
                 .execute(
@@ -115,14 +124,10 @@ impl<'client> Library<'client> {
                 .await?
                 .decode()?;
             if response.code != 200 {
-                failure = Some(response);
+                return Ok(response);
             }
         }
 
-        self.client.clear_cache();
-        if let Some(response) = failure {
-            return Ok(response);
-        }
         Ok(ApiResponse {
             code: 200,
             message: None,
